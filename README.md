@@ -62,7 +62,8 @@ dsh --profile web --dump-config | Select-String 'train-'
 
 ## 当前已知限制
 
-- 尚未完成重启后的实机视觉验收（答题 tab、Remote、跨重启历史）。
+- 实机验收已完成（2026-11-03，web profile）：三道合成题的导入、答题、判分、改稿涨分、历史回看与跨重启持久化均通过。
+- 判分质量仍在校准：同一篇稿件在不同调用间的诊断可能出现 ±10 以上波动，评分卡会以“波动较大”标记；`thresholdState` 为 `calibrating`，校准留到 M4。
 - 未做实时教练、链条卡、diff、门槛/兜底/参考版、弱点档案、提示卡、校准/导出。
 - `conversation.view` 不能移除宿主 composer 的 AI 对话输入，物理锁对话留到后续轮次。
 
