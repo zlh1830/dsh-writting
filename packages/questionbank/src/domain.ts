@@ -155,6 +155,7 @@ export class TrainDataStore implements TrainStore {
     for (const attempt of attempts) {
       entries.push({
         attempt: toAttemptSummary(attempt),
+        content: attempt.content,
         judge: (await this.getJudge(attempt.attemptId)) ?? null,
       })
     }

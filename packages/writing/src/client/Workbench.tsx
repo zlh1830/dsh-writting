@@ -74,6 +74,7 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
   const [judge, setJudge] = useState<JudgeResult | null>(null)
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [focusAnchor, setFocusAnchor] = useState<string | null>(null)
+  const [historyView, setHistoryView] = useState<HistoryEntry | null>(null)
   const [lastAttemptId, setLastAttemptId] = useState<string | null>(null)
   const previewRef = useRef<HTMLDivElement | null>(null)
   const draftRef = useRef({ questionId: null as string | null, content: '', elapsedMs: 0, running: false })
@@ -121,6 +122,7 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
         setRunning(draft?.running ?? false)
         setJudge(null)
         setFocusAnchor(null)
+        setHistoryView(null)
         setLastAttemptId(null)
         saveLastQuestion(sessionId, id)
         await loadHistory(id)
@@ -211,6 +213,7 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
       setError(null)
       setLastAttemptId(latest.attempt.attemptId)
       if (latest.judge !== null) {
+        setHistoryView(null)
         setJudge(latest.judge)
         setFocusAnchor(latest.judge.suggestions[0]?.anchor ?? null)
         setNotice('内容未修改，未新增提交；已展示上一次评分。')
@@ -224,6 +227,7 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
           setError(`判分失败：${remoteErrorText(judged.error)}`)
           return
         }
+        setHistoryView(null)
         setJudge(judged.value)
         setFocusAnchor(judged.value.suggestions[0]?.anchor ?? null)
         setNotice(`判分完成：${judged.value.score} 分。`)
@@ -259,6 +263,7 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
         await loadHistory(question.id)
         return
       }
+      setHistoryView(null)
       setJudge(judged.value)
       setFocusAnchor(judged.value.suggestions[0]?.anchor ?? null)
       setNotice(`判分完成：${judged.value.score} 分。`)
@@ -288,7 +293,10 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
     }
   }
 
-  const preview = useMemo(() => renderAnchorPreview(content, focusAnchor), [content, focusAnchor])
+  const preview = useMemo(
+    () => renderAnchorPreview(historyView?.content ?? content, focusAnchor),
+    [content, focusAnchor, historyView],
+  )
   const percent = question === null || question.wordLimit <= 0 ? 0 : words / question.wordLimit
   const quotaColor = percent < 0.8 ? theme.success : percent <= 1 ? theme.warn : theme.danger
 
@@ -406,9 +414,33 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
         </div>
 
         <div style={styles.sideColumn}>
-          {focusAnchor !== null ? (
+          {historyView !== null || focusAnchor !== null ? (
             <div style={styles.card} ref={previewRef}>
-              <div style={styles.sectionTitle}>正文定位 · {focusAnchor}</div>
+              <div style={{ ...styles.row, justifyContent: 'space-between' }}>
+                <div style={styles.sectionTitle}>
+                  {historyView !== null
+                    ? `历史稿件 · 第 ${historyView.attempt.attemptNo} 次提交`
+                    : `正文定位 · ${focusAnchor ?? ''}`}
+                </div>
+                {historyView !== null ? (
+                  <button
+                    type="button"
+                    style={styles.button}
+                    onClick={() => {
+                      setHistoryView(null)
+                      setFocusAnchor(null)
+                    }}
+                  >
+                    返回当前正文
+                  </button>
+                ) : null}
+              </div>
+              {historyView !== null ? (
+                <div style={styles.muted}>
+                  只读 · {historyView.attempt.wordCount} 字
+                  {focusAnchor === null ? '' : ` · 锚点 ${focusAnchor}`} · 可与左侧当前正文对照
+                </div>
+              ) : null}
               {preview}
             </div>
           ) : null}
@@ -436,10 +468,15 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
                     key={entry.attempt.attemptId}
                     style={styles.historyRow}
                     onClick={() => {
+                      setHistoryView(entry)
                       if (entry.judge !== null) {
                         setJudge(entry.judge)
                         setFocusAnchor(entry.judge.suggestions[0]?.anchor ?? null)
                         setNotice(`正在查看历史评分（第 ${entry.attempt.attemptNo} 次提交）。`)
+                      } else {
+                        setJudge(null)
+                        setFocusAnchor(null)
+                        setNotice(`正在查看第 ${entry.attempt.attemptNo} 次提交的稿件（尚未判分）。`)
                       }
                     }}
                   >

@@ -162,6 +162,8 @@ export type JudgeResult = z.infer<typeof JudgeResultSchema>
 
 export const HistoryEntrySchema = z.object({
   attempt: AttemptSchema.omit({ content: true }),
+  /** The submitted draft, so the answer view can show and anchor a historical attempt. */
+  content: z.string(),
   judge: JudgeResultSchema.nullable(),
 })
 export type HistoryEntry = z.infer<typeof HistoryEntrySchema>
