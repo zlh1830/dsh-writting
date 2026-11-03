@@ -1,5 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import TRAIN_REMOTE from '@local/dsh-train-core/remote'
+import { CoachSettings } from './CoachSettings.js'
 import { WritingWorkbench } from './Workbench.js'
 import type { ClientRemoteLike, SlotsLike, TrainRemoteNamespace } from './remote.js'
 
@@ -37,6 +38,12 @@ export async function apply(ctx: Context): Promise<void> {
       slots.register(
         { name: 'conversation.view', id: 'train-writing', order: 100, label: () => '答题' },
         (props: { sessionId: string }) => <WritingWorkbench sessionId={props.sessionId} remote={train} />,
+      ),
+    )
+    slots.inject('settings.section', () =>
+      slots.register(
+        { name: 'settings.section', id: 'train-coach-settings', order: 350, label: () => '写作训练' },
+        () => <CoachSettings remote={train} />,
       ),
     )
   })

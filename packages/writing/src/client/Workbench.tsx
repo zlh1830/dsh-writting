@@ -11,6 +11,7 @@ import {
   type QuestionSummary,
 } from '@local/dsh-train-core'
 import { loadDraft, loadLastQuestion, saveDraft, saveLastQuestion } from './draft.js'
+import { CoachPanel } from './CoachPanel.js'
 import { remoteErrorText, type TrainRemoteNamespace } from './remote.js'
 
 export interface WritingWorkbenchProps {
@@ -77,6 +78,7 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
   const [historyView, setHistoryView] = useState<HistoryEntry | null>(null)
   const [lastAttemptId, setLastAttemptId] = useState<string | null>(null)
   const previewRef = useRef<HTMLDivElement | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const draftRef = useRef({ questionId: null as string | null, content: '', elapsedMs: 0, running: false })
   draftRef.current = { questionId: question?.id ?? null, content, elapsedMs, running }
 
@@ -197,6 +199,34 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
   const appendChange = (value: string) => {
     setContent(value)
     if (!running && value.trim().length > 0) setRunning(true)
+  }
+
+  const insertPlaceholder = (link: string) => {
+    if (question === null || historyView !== null) return
+    const marker = `【待补：${link}】`
+    const textarea = textareaRef.current
+    if (textarea === null) {
+      setContent((value) => value + marker)
+      return
+    }
+    const start = textarea.selectionStart ?? content.length
+    const end = textarea.selectionEnd ?? start
+    setContent(content.slice(0, start) + marker + content.slice(end))
+    requestAnimationFrame(() => {
+      textarea.focus()
+      const position = start + marker.length
+      textarea.setSelectionRange(position, position)
+    })
+  }
+
+  const clearPlaceholders = () => {
+    const matches = content.match(/【待补：[^】]*】/gu)
+    if (matches === null || matches.length === 0) {
+      setNotice('当前正文没有待补标记。')
+      return
+    }
+    setContent(content.replace(/【待补：[^】]*】/gu, ''))
+    setNotice(`已清除 ${matches.length} 个待补标记。`)
   }
 
   const submit = async () => {
@@ -382,6 +412,7 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
       <div style={styles.main}>
         <div style={styles.editorColumn}>
           <textarea
+            ref={textareaRef}
             aria-label="作答正文"
             style={styles.textarea}
             value={content}
@@ -414,6 +445,18 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
         </div>
 
         <div style={styles.sideColumn}>
+          {question !== null ? (
+            <CoachPanel
+              sessionId={sessionId}
+              question={question}
+              remote={remote}
+              content={content}
+              textareaRef={textareaRef}
+              disabled={historyView !== null || busy !== null}
+              onInsert={insertPlaceholder}
+              onClear={clearPlaceholders}
+            />
+          ) : null}
           {historyView !== null || focusAnchor !== null ? (
             <div style={styles.card} ref={previewRef}>
               <div style={{ ...styles.row, justifyContent: 'space-between' }}>

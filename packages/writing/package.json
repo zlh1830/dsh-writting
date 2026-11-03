@@ -1,6 +1,6 @@
 {
   "name": "@local/dsh-train-writing",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "main": "lib/index.js",
@@ -34,3 +34,4 @@
     "@local/dsh-train-core": "file:../core"
   }
 }
+

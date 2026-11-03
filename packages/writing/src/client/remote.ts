@@ -1,4 +1,11 @@
 import type {
+  ChainSnapshot,
+  CoachCheckRequest,
+  CoachConfigResult,
+  CoachProbeResult,
+  CoachScanRequest,
+  GetChainRequest,
+  GetChainResult,
   GetHistoryRequest,
   GetQuestionRequest,
   HistoryEntry,
@@ -21,6 +28,12 @@ export interface TrainRemoteNamespace {
   saveAttempt(request: SaveAttemptRequest): Promise<RemoteResult<SaveAttemptResult>>
   judge(request: JudgeRequest, signal?: AbortSignal): Promise<RemoteResult<JudgeResult>>
   getHistory(request: GetHistoryRequest): Promise<RemoteResult<{ entries: HistoryEntry[] }>>
+  getChain(request: GetChainRequest): Promise<RemoteResult<GetChainResult>>
+  coachScan(request: CoachScanRequest, signal?: AbortSignal): Promise<RemoteResult<ChainSnapshot>>
+  coachCheck(request: CoachCheckRequest, signal?: AbortSignal): Promise<RemoteResult<ChainSnapshot>>
+  coachReset(request: { sessionId: string; questionId: string }): Promise<RemoteResult<{ ok: boolean }>>
+  coachConfig(): Promise<RemoteResult<CoachConfigResult>>
+  coachProbe(): Promise<RemoteResult<CoachProbeResult>>
 }
 
 export interface ClientRemoteLike {
