@@ -8,6 +8,20 @@
         provider: deepseek-account
         model: deepseek-flash
 
+    - id: train-coach-local
+      name: '@local/dsh-train-coach-local'
+      config:
+        chainDir: train/chains
+        provider: train-local
+        model: qwen2.5:3b
+        mode: auto
+        idleDelayMs: 3000
+        charThreshold: 50
+        minIntervalMs: 2000
+        requestTimeoutMs: 8000
+        maxParagraphChars: 1200
+        degradeAfterFailures: 3
+
     - id: train-judge-cloud
       name: '@local/dsh-train-judge-cloud'
       config:

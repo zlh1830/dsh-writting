@@ -13,10 +13,11 @@
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "vitest run --configLoader native --pool=threads",
-    "build": "npm run build -w @local/dsh-train-core && npm run build -w @local/dsh-train-questionbank && npm run build -w @local/dsh-train-judge-cloud && npm run build -w @local/dsh-train-writing",
+    "build": "npm run build -w @local/dsh-train-core && npm run build -w @local/dsh-train-coach-local && npm run build -w @local/dsh-train-questionbank && npm run build -w @local/dsh-train-judge-cloud && npm run build -w @local/dsh-train-writing",
     "check:client": "node scripts/check-client.mjs",
     "check:privacy": "node scripts/check-privacy.mjs",
-    "verify": "npm run check:privacy && npm run typecheck && npm test && npm run build && npm run check:client"
+    "check:docs": "node scripts/check-docs.mjs",
+    "verify": "npm run check:privacy && npm run check:docs && npm run typecheck && npm test && npm run build && npm run check:client"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.5",
