@@ -16,30 +16,53 @@ export class JudgeProtocolError extends Error {
   }
 }
 
+/**
+ * The judge prompt asks for strings, but models occasionally wrap a value in an
+ * object (`{"issue": "…"}`) or return a number. Coerce instead of rejecting the
+ * whole scorecard: one malformed entry used to abort the judge and force a second
+ * 30-second model call.
+ */
+function textOf(value: unknown): string {
+  if (typeof value === 'string') return value.trim()
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (value !== null && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    for (const key of ['text', 'message', 'issue', 'description', 'content', 'value', 'label']) {
+      const candidate = record[key]
+      if (typeof candidate === 'string' && candidate.trim().length > 0) return candidate.trim()
+    }
+  }
+  return ''
+}
+
+function textList(values: readonly unknown[] | undefined): string[] {
+  return uniqueStrings((values ?? []).map(textOf).filter((value) => value.length > 0))
+}
+
 const RawPointSchema = z.object({
-  id: z.string().optional(),
-  status: z.string(),
-  anchor: z.string().optional(),
-  note: z.string().optional(),
+  id: z.unknown().optional(),
+  status: z.unknown().optional(),
+  anchor: z.unknown().optional(),
+  note: z.unknown().optional(),
 })
 
 const RawSuggestionSchema = z.object({
-  anchor: z.string().optional(),
-  issueType: z.string().optional(),
-  direction: z.string(),
-  evidence: z.string().optional(),
-  impact: z.string().optional(),
+  anchor: z.unknown().optional(),
+  issueType: z.unknown().optional(),
+  direction: z.unknown().optional(),
+  evidence: z.unknown().optional(),
+  impact: z.unknown().optional(),
 })
 
 const RawEmptyPhraseSchema = z.object({
-  anchor: z.string().optional(),
-  text: z.string(),
-  missing: z.array(z.string()).optional(),
+  anchor: z.unknown().optional(),
+  text: z.unknown().optional(),
+  missing: z.array(z.unknown()).optional(),
 })
 
 const RawResolvedSchema = z.object({
-  id: z.string(),
-  status: z.string(),
+  id: z.unknown().optional(),
+  status: z.unknown().optional(),
 })
 
 const RawJudgeSchema = z.object({
@@ -53,13 +76,13 @@ const RawJudgeSchema = z.object({
     })
     .optional(),
   points: z.array(RawPointSchema).optional(),
-  missingLinks: z.array(z.string()).optional(),
-  missingPoints: z.array(z.string()).optional(),
+  missingLinks: z.array(z.unknown()).optional(),
+  missingPoints: z.array(z.unknown()).optional(),
   suggestions: z.array(RawSuggestionSchema).optional(),
   emptyPhrases: z.array(RawEmptyPhraseSchema).optional(),
-  formatIssues: z.array(z.string()).optional(),
+  formatIssues: z.array(z.unknown()).optional(),
   resolved: z.array(RawResolvedSchema).optional(),
-  reference: z.string().nullable().optional(),
+  reference: z.unknown().optional(),
 })
 
 export interface NormalizeJudgeInput {
@@ -90,7 +113,8 @@ export function normalizeJudgeResult(input: NormalizeJudgeInput): JudgeResult {
 
   const rawPoints = new Map<string, z.infer<typeof RawPointSchema>>()
   for (const point of raw.points ?? []) {
-    if (point.id !== undefined) rawPoints.set(point.id, point)
+    const id = textOf(point.id)
+    if (id.length > 0) rawPoints.set(id, point)
   }
   const missingPointIds = input.question.points.filter((point) => !rawPoints.has(point.id)).map((point) => point.id)
   if (missingPointIds.length > 0) {
@@ -99,21 +123,23 @@ export function normalizeJudgeResult(input: NormalizeJudgeInput): JudgeResult {
 
   const points: PointJudgment[] = input.question.points.map((point) => {
     const judgment = rawPoints.get(point.id)!
-    const anchor = resolveAnchor(content, judgment.anchor, undefined)
+    const anchor = resolveAnchor(content, textOf(judgment.anchor), undefined)
+    const note = textOf(judgment.note)
     return {
       id: point.id,
-      status: normalizePointStatus(judgment.status),
+      status: normalizePointStatus(textOf(judgment.status)),
       ...(anchor === null ? {} : { anchor }),
-      ...(judgment.note === undefined ? {} : { note: judgment.note }),
+      ...(note.length === 0 ? {} : { note }),
     }
   })
 
   let badAnchorCount = 0
   const normalizedSuggestions: Suggestion[] = []
   for (const suggestion of raw.suggestions ?? []) {
-    const direction = suggestion.direction.trim()
+    const direction = textOf(suggestion.direction)
     if (direction.length === 0) continue
-    const anchor = resolveAnchor(content, suggestion.anchor, suggestion.evidence)
+    const evidence = textOf(suggestion.evidence)
+    const anchor = resolveAnchor(content, textOf(suggestion.anchor), evidence)
     if (anchor === null) {
       badAnchorCount += 1
       continue
@@ -121,23 +147,24 @@ export function normalizeJudgeResult(input: NormalizeJudgeInput): JudgeResult {
     normalizedSuggestions.push({
       id: `R${normalizedSuggestions.length + 1}`,
       anchor,
-      issueType: normalizeIssueType(suggestion.issueType),
+      issueType: normalizeIssueType(textOf(suggestion.issueType)),
       direction,
-      evidence: (suggestion.evidence ?? '').trim(),
-      impact: normalizeImpact(suggestion.impact),
+      evidence,
+      impact: normalizeImpact(textOf(suggestion.impact)),
     })
   }
   const guarded = guardSuggestions(normalizedSuggestions, content)
 
   const emptyPhrases = (raw.emptyPhrases ?? []).flatMap((phrase) => {
-    const anchor = resolveAnchor(content, phrase.anchor, phrase.text)
+    const text = textOf(phrase.text)
+    const anchor = resolveAnchor(content, textOf(phrase.anchor), text)
     if (anchor === null) return []
-    return [{ anchor, text: phrase.text.trim(), missing: phrase.missing ?? [] }]
+    return [{ anchor, text, missing: textList(phrase.missing) }]
   })
 
-  const missingLinks = uniqueStrings(raw.missingLinks ?? [])
-  const missingPoints = uniqueStrings(raw.missingPoints ?? [])
-  const formatIssues = uniqueStrings(raw.formatIssues ?? [])
+  const missingLinks = textList(raw.missingLinks)
+  const missingPoints = textList(raw.missingPoints)
+  const formatIssues = textList(raw.formatIssues)
 
   const dims = deriveDims({
     points,
@@ -169,8 +196,8 @@ export function normalizeJudgeResult(input: NormalizeJudgeInput): JudgeResult {
     emptyPhrases,
     formatIssues,
     resolved: (raw.resolved ?? []).map((item) => ({
-      id: item.id,
-      status: item.status === 'solved' ? ('solved' as const) : ('unsolved' as const),
+      id: textOf(item.id),
+      status: textOf(item.status) === 'solved' ? ('solved' as const) : ('unsolved' as const),
     })),
     reference: null,
     guardFlags,

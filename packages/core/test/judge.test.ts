@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_WEIGHTS,
   normalizeJudgeResult,
@@ -139,6 +139,25 @@ describe('normalizeJudgeResult', () => {
     })
     expect(result.dims).toEqual({ coverage: 50, chain: 80, elements: 70, language: 100, material: 80 })
     expect(result.score).toBe(68)
+  })
+
+  it('coerces object-shaped issue entries instead of failing the contract', () => {
+    const result = normalizeJudgeResult({
+      attempt,
+      question,
+      raw: raw({
+        formatIssues: [{ issue: '缺发文字号' }, { message: '落款不规范' }],
+        missingLinks: [{ text: '时限' }],
+      }),
+      weights: DEFAULT_WEIGHTS,
+      threshold: 90,
+      thresholdState: 'calibrating',
+      modelId: 'deepseek-flash',
+      promptVersion: 'judge-v1',
+      weightsVersion: 'weights-v1',
+    })
+    expect(result.formatIssues).toEqual(['缺发文字号', '落款不规范'])
+    expect(result.missingLinks).toEqual(['时限'])
   })
 
   it('guards rewrite-shaped directions and caps suggestions at five', () => {

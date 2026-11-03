@@ -17,6 +17,7 @@
 - 修复判分 `model returned no text`：`deepseek-flash` 在 `maxOutputTokens=1200` 时把输出预算全部用于推理、没有留下正文；判分调用改为 `reasoningEffort: low`，上限提到 4096，超时 60s，并把 `finish/chunks/tokens` 写进空回复错误便于定位。
 - 修复评分漂移（同一题 63 → 21）：五维改为**服务端派生**——coverage 取采分点矩阵命中率（命中 1/部分 0.5），chain/elements/language/material 由缺失环节、缺失材料点、格式问题与空话句数量扣分；模型不再输出维度分，避免 0–1 与 0–100 混用。
 - 修复改稿被过度扣分：不再把上一轮 `{score, unresolved}` 原样发给模型（提示词从未解释该字段），不稳定检测仍保留在服务端。
+- 修复判分 schema 过严：模型偶尔把 `formatIssues`/`missingLinks` 等写成对象，整张评分卡被判 `schema-invalid` 并触发第二次约 30s 的模型调用；改为 `textOf`/`textList` 归一化（对象取 `text/message/issue/...`），一条坏条目不再废掉整次判分。
 
 ## [0.1.0-mvp] - 2026-11-03
 
