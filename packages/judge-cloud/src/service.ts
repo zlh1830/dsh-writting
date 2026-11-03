@@ -55,7 +55,9 @@ export class JudgeService {
     }
 
     const previous = await this.previousJudge(question, attempt)
-    const payload = buildJudgePayload(question, attempt, this.config, previous)
+    // `previous` feeds the server-side instability flag only; sending an
+    // unexplained prior result to the model made it penalize the revision.
+    const payload = buildJudgePayload(question, attempt, this.config)
     let client: LlmClient
     try {
       client = this.options.llm()

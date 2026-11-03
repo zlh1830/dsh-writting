@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+﻿import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_WEIGHTS,
   normalizeJudgeResult,
@@ -66,8 +66,9 @@ describe('normalizeJudgeResult', () => {
       promptVersion: 'judge-v1',
       weightsVersion: 'weights-v1',
     })
-    expect(result.score).toBe(78)
+    expect(result.score).toBe(68)
     expect(result.pass).toBe(false)
+    expect(result.dims).toEqual({ coverage: 50, chain: 80, elements: 70, language: 100, material: 80 })
     expect(result.suggestions).toHaveLength(1)
     expect(result.suggestions[0]?.anchor).toBe('2:1')
     expect(result.reference).toBeNull()
@@ -109,20 +110,35 @@ describe('normalizeJudgeResult', () => {
     ).toThrow(/omitted point judgments/)
   })
 
-  it('rejects a missing dimension block', () => {
-    expect(() =>
-      normalizeJudgeResult({
-        attempt,
-        question,
-        raw: raw({ dimensions: undefined }),
-        weights: DEFAULT_WEIGHTS,
-        threshold: 90,
-        thresholdState: 'calibrating',
-        modelId: 'deepseek-flash',
-        promptVersion: 'judge-v1',
-        weightsVersion: 'weights-v1',
-      }),
-    ).toThrow(/judge contract/)
+  it('accepts a missing dimension block because dimensions are server-derived', () => {
+    const result = normalizeJudgeResult({
+      attempt,
+      question,
+      raw: raw({ dimensions: undefined }),
+      weights: DEFAULT_WEIGHTS,
+      threshold: 90,
+      thresholdState: 'calibrating',
+      modelId: 'deepseek-flash',
+      promptVersion: 'judge-v1',
+      weightsVersion: 'weights-v1',
+    })
+    expect(result.score).toBe(68)
+  })
+
+  it('ignores model-supplied dimension numbers and derives them from the matrix', () => {
+    const result = normalizeJudgeResult({
+      attempt,
+      question,
+      raw: raw({ dimensions: { coverage: 0.33, chain: 0.16, elements: 0.16, language: 0.08, material: 0.09 } }),
+      weights: DEFAULT_WEIGHTS,
+      threshold: 90,
+      thresholdState: 'calibrating',
+      modelId: 'deepseek-flash',
+      promptVersion: 'judge-v1',
+      weightsVersion: 'weights-v1',
+    })
+    expect(result.dims).toEqual({ coverage: 50, chain: 80, elements: 70, language: 100, material: 80 })
+    expect(result.score).toBe(68)
   })
 
   it('guards rewrite-shaped directions and caps suggestions at five', () => {
@@ -151,3 +167,4 @@ describe('normalizeJudgeResult', () => {
     expect(result.guardFlags.join('')).toContain('不提供整段成稿')
   })
 })
+

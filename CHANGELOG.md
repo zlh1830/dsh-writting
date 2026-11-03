@@ -15,6 +15,8 @@
 - 修复“答题”tab 空白：Client 插件在 render 中读 `ctx.remote.train` 触发 Cordis `cannot get property "remote.train" without inject`，slot entry 崩溃。改为在 `$mount` 之后用嵌套 `ctx.inject(['slots','remote.train'], …)` 取得命名空间并注册视图（`remote.<ns>` 是 traced 子服务，读取方必须声明该服务名）。
 - 修复答题视图在暗色主题下白底白字：改用 DSH 设计令牌 `--dsw-alias-*`（`label-primary`/`bg-layer-2`/`border-l2`/`state-*`），不再使用不存在的 `--dsh-panel` 等变量与 `color: inherit`。
 - 修复判分 `model returned no text`：`deepseek-flash` 在 `maxOutputTokens=1200` 时把输出预算全部用于推理、没有留下正文；判分调用改为 `reasoningEffort: low`，上限提到 4096，超时 60s，并把 `finish/chunks/tokens` 写进空回复错误便于定位。
+- 修复评分漂移（同一题 63 → 21）：五维改为**服务端派生**——coverage 取采分点矩阵命中率（命中 1/部分 0.5），chain/elements/language/material 由缺失环节、缺失材料点、格式问题与空话句数量扣分；模型不再输出维度分，避免 0–1 与 0–100 混用。
+- 修复改稿被过度扣分：不再把上一轮 `{score, unresolved}` 原样发给模型（提示词从未解释该字段），不稳定检测仍保留在服务端。
 
 ## [0.1.0-mvp] - 2026-11-03
 

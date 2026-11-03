@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+﻿import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
@@ -147,7 +147,7 @@ describe('JudgeService', () => {
   it('judges once, composes the score, and records token usage', async () => {
     const { service, llm, attempt } = await setup([await fixtureJudge()])
     const result = await service.judge(attempt.attemptId)
-    expect(result.score).toBe(78)
+    expect(result.score).toBe(61)
     expect(result.pass).toBe(false)
     expect(result.suggestions).toHaveLength(2)
     expect(result.reference).toBeNull()
@@ -168,7 +168,7 @@ describe('JudgeService', () => {
   it('retries once when the first output is not JSON', async () => {
     const { service, llm, attempt } = await setup(['not json', await fixtureJudge()])
     const result = await service.judge(attempt.attemptId)
-    expect(result.score).toBe(78)
+    expect(result.score).toBe(61)
     expect(llm.calls).toBe(2)
   })
 
@@ -206,3 +206,4 @@ describe('JudgeService', () => {
     await expect(service.judge(attempt.attemptId)).rejects.toMatchObject({ code: 'JUDGE_FAILED' })
   })
 })
+

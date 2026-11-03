@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { Attempt, JudgeResult, JudgeWeights, PointJudgment, Question, Suggestion } from './types.js'
+import type { Attempt, Dims, JudgeResult, JudgeWeights, PointJudgment, Question, Suggestion } from './types.js'
 import { composeScore } from './scoring.js'
 import { resolveAnchor, shortenDirection, similarity } from './text.js'
 
@@ -43,13 +43,15 @@ const RawResolvedSchema = z.object({
 })
 
 const RawJudgeSchema = z.object({
-  dimensions: z.object({
-    coverage: z.number(),
-    chain: z.number(),
-    elements: z.number(),
-    language: z.number(),
-    material: z.number(),
-  }),
+  dimensions: z
+    .object({
+      coverage: z.number(),
+      chain: z.number(),
+      elements: z.number(),
+      language: z.number(),
+      material: z.number(),
+    })
+    .optional(),
   points: z.array(RawPointSchema).optional(),
   missingLinks: z.array(z.string()).optional(),
   missingPoints: z.array(z.string()).optional(),
@@ -133,7 +135,18 @@ export function normalizeJudgeResult(input: NormalizeJudgeInput): JudgeResult {
     return [{ anchor, text: phrase.text.trim(), missing: phrase.missing ?? [] }]
   })
 
-  const score = composeScore(raw.dimensions, input.weights, {
+  const missingLinks = uniqueStrings(raw.missingLinks ?? [])
+  const missingPoints = uniqueStrings(raw.missingPoints ?? [])
+  const formatIssues = uniqueStrings(raw.formatIssues ?? [])
+
+  const dims = deriveDims({
+    points,
+    missingLinks,
+    missingPoints,
+    formatIssues,
+    emptyPhrases,
+  })
+  const score = composeScore(dims, input.weights, {
     threshold: input.threshold,
     thresholdState: input.thresholdState,
   })
@@ -148,13 +161,13 @@ export function normalizeJudgeResult(input: NormalizeJudgeInput): JudgeResult {
     score: score.total,
     pass: score.pass,
     thresholdState: input.thresholdState,
-    dims: raw.dimensions,
+    dims,
     points,
-    missingLinks: uniqueStrings(raw.missingLinks ?? []),
-    missingPoints: uniqueStrings(raw.missingPoints ?? []),
+    missingLinks,
+    missingPoints,
     suggestions: guarded.suggestions,
     emptyPhrases,
-    formatIssues: uniqueStrings(raw.formatIssues ?? []),
+    formatIssues,
     resolved: (raw.resolved ?? []).map((item) => ({
       id: item.id,
       status: item.status === 'solved' ? ('solved' as const) : ('unsolved' as const),
@@ -170,6 +183,35 @@ export function normalizeJudgeResult(input: NormalizeJudgeInput): JudgeResult {
     unstable: false,
     badAnchorCount,
   }
+}
+
+export interface DeriveDimsInput {
+  points: readonly PointJudgment[]
+  missingLinks: readonly string[]
+  missingPoints: readonly string[]
+  formatIssues: readonly string[]
+  emptyPhrases: readonly { anchor: string; text: string }[]
+}
+
+/**
+ * Server-owned dimension arithmetic. The model judges structure (point matrix,
+ * missing links/points, empty phrases, format issues); it does not get to invent
+ * the numbers — its raw dimension estimates drifted between 0–1 fractions and
+ * 0–100 integers across identical requests and produced unexplainable swings.
+ * Every value is 0–100 and derived only from countable observations.
+ */
+export function deriveDims(input: DeriveDimsInput): Dims {
+  const total = input.points.length
+  const earned = input.points.reduce(
+    (sum, point) => sum + (point.status === 'hit' ? 1 : point.status === 'partial' ? 0.5 : 0),
+    0,
+  )
+  const coverage = total === 0 ? 0 : Math.round((100 * earned) / total)
+  const chain = Math.max(20, 100 - 20 * Math.min(input.missingLinks.length, 4))
+  const elements = Math.max(20, 100 - 15 * Math.min(input.missingLinks.length + input.missingPoints.length, 5))
+  const language = Math.max(20, 100 - 12 * Math.min(input.formatIssues.length, 5) - 4 * Math.min(input.emptyPhrases.length, 5))
+  const material = Math.max(20, 100 - 20 * Math.min(input.missingPoints.length, 4))
+  return { coverage, chain, elements, language, material }
 }
 
 /** Keep at most five actionable suggestions, trimming rewrite-shaped directions. */

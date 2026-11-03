@@ -10,10 +10,10 @@ export const JUDGE_SYSTEM_PROMPT = `你是一名写作训练批改员。你的�
 5. 无法判断的要点写进 missingPoints，不要编造材料里没有的内容。
 6. 不评价政策表述是否正确；涉及政策只提示“需人工核对官网原文”。
 7. 采分点必须逐个判定，不得遗漏或新增 id。
+8. 总分与五维由服务端计算，你只输出结构化判定，不要输出总分或维度分。
 
 【输出 JSON】
 {
-  "dimensions": {"coverage":0,"chain":0,"elements":0,"language":0,"material":0},
   "points": [{"id":"p1","status":"hit|partial|miss","anchor":"2:1","note":"判定依据"}],
   "missingLinks": [],
   "missingPoints": [],
@@ -23,13 +23,12 @@ export const JUDGE_SYSTEM_PROMPT = `你是一名写作训练批改员。你的�
   "resolved": [{"id":"R1","status":"solved|unsolved"}]
 }
 
-维度含义：coverage 采分点覆盖 40%；chain 链条完整 20%；elements 六要素执行 20%；language 语言与格式 10%；material 材料贴合 10%。分数由服务端合成，不要输出总分。`
+判定口径：coverage 按采分点命中率（命中 1、部分 0.5、未命中 0）；chain 看环节是否完整；elements 看必备要素是否齐全；language 看格式与空话；material 看是否贴合材料。这些分数由服务端按你的判定计算，不要自行打分。`
 
 export interface JudgePayload {
   question: Pick<Question, 'id' | 'type' | 'topic' | 'wordLimit' | 'requirement'>
   points: Question['points']
   answer: string
-  prev: { score: number; unresolved: string[] } | null
   rubric: {
     weights: JudgeConfig['weights']
     threshold: number
@@ -38,12 +37,7 @@ export interface JudgePayload {
 }
 
 /** Build the one user message; material is deliberately not sent after the points were cached. */
-export function buildJudgePayload(
-  question: Question,
-  attempt: Attempt,
-  config: JudgeConfig,
-  previous: { score: number; unresolved: string[] } | null,
-): JudgePayload {
+export function buildJudgePayload(question: Question, attempt: Attempt, config: JudgeConfig): JudgePayload {
   return {
     question: {
       id: question.id,
@@ -54,7 +48,6 @@ export function buildJudgePayload(
     },
     points: question.points,
     answer: numberParagraphs(attempt.content),
-    prev: previous,
     rubric: {
       weights: config.weights,
       threshold: config.passThreshold,
