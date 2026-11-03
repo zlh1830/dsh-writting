@@ -23,8 +23,28 @@
 - 历史 Attempt 列表改为可滚动，服务端最多返回最近 20 条（原 5 条）。
 - 历史条目可回看当次稿件：`HistoryEntry` 增加 `content`，点击历史记录后右侧显示该次提交的只读正文并在其上高亮锚点（此前只传摘要、定位面板用的是当前编辑区内容，正文一变就看不到）。
 
-## [0.1.0-mvp] - 2026-11-03
+## [0.2.0-coach] - 2026-11-03
 
+### Added
+
+- `@local/dsh-train-coach-local`：3 张链条卡、规则识别、可选本地模型、滞后确认、失败降级、`train` 教练 Remote。
+- 答题视图教练面板：覆盖率环、缺失/不确定环节、折叠、空位标记插入/清除、状态与降级提示。
+- 设置页“写作训练”：provider/model/mode/链卡数与本地模型连通测试。
+- `scripts/mock-openai-server.mjs`：无本地模型时的 OpenAI-compatible 协议桩。
+- `scripts/check-docs.mjs` 与本地私有文档 INDEX/HANDOFF 交接体系。
+
+### Changed
+
+- 所有包版本升至 `0.2.0`；bundle patch 新增 `train-coach-local` 行。
+- 教练规则优先、模型可选，且绝不回退云端；模型只接收当前段落。
+- 文档索引与交接单只存在于本地 `private/`，不随仓库发布。
+
+### Known
+
+- 本机无本地模型：规则模式可验收；真模型质量/延迟/3 秒目标需异机手册验证。
+- 教练快照不持久化，重启后重置为全 missing。
+
+## [0.1.0-mvp] - 2026-11-03
 ### Added
 
 - `@local/dsh-train` bundle 与 `cordis.patch.yml`：题库、判分、答题视图三条 Loader 行。
