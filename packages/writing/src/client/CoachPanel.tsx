@@ -9,6 +9,7 @@ import {
   type Question,
 } from '@local/dsh-train-core'
 import { remoteErrorText, type TrainRemoteNamespace } from './remote.js'
+import { CoachSettings } from './CoachSettings.js'
 
 export interface CoachPanelProps {
   sessionId: string
@@ -57,6 +58,7 @@ export function CoachPanel({ sessionId, question, remote, content, textareaRef, 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState(() => readCollapsed(sessionId))
+  const [showConfig, setShowConfig] = useState(false)
 
   const contentRef = useRef(content)
   contentRef.current = content
@@ -320,7 +322,16 @@ export function CoachPanel({ sessionId, question, remote, content, textareaRef, 
             <button type="button" style={styles.button} onClick={onClear} disabled={disabled}>
               清除待补标记
             </button>
+            <button type="button" style={styles.button} onClick={() => setShowConfig((value) => !value)}>
+              {showConfig ? '收起配置' : '配置本地模型'}
+            </button>
           </div>
+
+          {showConfig ? (
+            <div style={{ marginTop: 10 }}>
+              <CoachSettings remote={remote} />
+            </div>
+          ) : null}
 
           {disabled ? <div style={{ ...styles.muted, marginTop: 6 }}>历史回看中，实时教练已暂停。</div> : null}
           {error !== null ? <div style={{ ...styles.muted, color: theme.danger, marginTop: 6 }}>{error}</div> : null}

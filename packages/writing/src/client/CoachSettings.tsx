@@ -52,6 +52,18 @@ export function CoachSettings({ remote }: { remote: TrainRemoteNamespace }) {
     }
   }
 
+  const refresh = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const result = await remote.coachConfig()
+      if (result.ok) setConfig(result.value)
+      else setError(remoteErrorText(result.error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div style={styles.card}>
       <div style={styles.row}>
@@ -61,6 +73,9 @@ export function CoachSettings({ remote }: { remote: TrainRemoteNamespace }) {
         </div>
         <button type="button" style={styles.button} onClick={() => void test()} disabled={busy}>
           {busy ? '测试中…' : '测试本地模型'}
+        </button>
+        <button type="button" style={styles.button} onClick={() => void refresh()} disabled={busy}>
+          刷新状态
         </button>
       </div>
 
@@ -87,6 +102,35 @@ export function CoachSettings({ remote }: { remote: TrainRemoteNamespace }) {
       <div style={{ ...styles.muted, marginTop: 8 }}>
         本地 provider 在 DSH「设置 → 模型」添加 OpenAI-compatible 路由；迁移与真模型验收见本地 private 手册。
       </div>
+
+      <details style={{ marginTop: 8 }}>
+        <summary style={{ ...styles.muted, cursor: 'pointer' }}>如何配置本地模型（不会调用云端）</summary>
+        <div style={{ ...styles.muted, marginTop: 6 }}>
+          1. 目标机启动 Ollama / llama.cpp / vLLM，确认 <code>GET &lt;baseURL&gt;/models</code> 可用；
+          <br />
+          2. DSH「设置 → 模型」添加 OpenAI-compatible：Base URL 如 <code>http://127.0.0.1:11434/v1</code>，Model ID 如{' '}
+          <code>qwen2.5:3b</code>（本地通常不需要 API key）；
+          <br />
+          3. 重启 DSH Web，回到这里点“刷新状态”，provider 显示已挂载即可；
+          <br />
+          4. 教练只使用配置里的本地 provider（<code>train-local</code>），没有挂载时走纯规则，
+          <strong>不会调用云端模型</strong>；云端只用于独立的判分。
+        </div>
+        <pre style={{ margin: '8px 0 0', padding: 8, borderRadius: 6, background: 'rgba(127,127,127,0.10)', overflowX: 'auto', fontSize: 11, lineHeight: 1.5 }}>
+{`- id: llm-pi-ai
+  name: '@deepseek-ai/dsh-llm-pi-ai'
+  config:
+    providers:
+      train-local:
+        displayName: Local Coach
+        api: openai-completions
+        baseURL: http://127.0.0.1:11434/v1
+        models:
+          - id: qwen2.5:3b
+            name: Qwen2.5 3B
+            contextWindow: 8192`}
+        </pre>
+      </details>
     </div>
   )
 }
