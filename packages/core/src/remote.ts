@@ -2,6 +2,16 @@ import { z } from 'zod'
 import { createTypertRemoteInfo } from '@deepseek-ai/dsh-typert-protocol/remote-info'
 import type { TypertRemoteCodecSpec } from '@deepseek-ai/dsh-typert-protocol'
 import {
+  ChainSnapshotSchema,
+  CoachCheckRequestSchema,
+  CoachConfigResultSchema,
+  CoachProbeResultSchema,
+  CoachResetRequestSchema,
+  CoachScanRequestSchema,
+  GetChainRequestSchema,
+  GetChainResultSchema,
+} from './coach.js'
+import {
   GetHistoryRequestSchema,
   GetQuestionRequestSchema,
   HistoryResultSchema,
@@ -74,6 +84,56 @@ const spec = {
       invocation: { kind: 'direct' as const },
       parameters: [requestParameter('@local/dsh-train-core#train/getHistory:request', GetHistoryRequestSchema)],
       result: strictCodec('@local/dsh-train-core#train/getHistory:result', HistoryResultSchema),
+    },
+    'train/getChain': {
+      service: 'trainCoach',
+      implementation: 'getChain',
+      description: 'Read the chain card and the current ephemeral coach snapshot.',
+      invocation: { kind: 'direct' as const },
+      parameters: [requestParameter('@local/dsh-train-core#train/getChain:request', GetChainRequestSchema)],
+      result: strictCodec('@local/dsh-train-core#train/getChain:result', GetChainResultSchema),
+    },
+    'train/coachScan': {
+      service: 'trainCoach',
+      implementation: 'scan',
+      description: 'Recognize one paragraph against the chain and merge the stable snapshot.',
+      invocation: { kind: 'direct' as const },
+      parameters: [requestParameter('@local/dsh-train-core#train/coachScan:request', CoachScanRequestSchema)],
+      cancellation: { parameter: 'signal' },
+      result: strictCodec('@local/dsh-train-core#train/coachScan:result', ChainSnapshotSchema),
+    },
+    'train/coachCheck': {
+      service: 'trainCoach',
+      implementation: 'check',
+      description: 'Run a full manual chain check over the current draft.',
+      invocation: { kind: 'direct' as const },
+      parameters: [requestParameter('@local/dsh-train-core#train/coachCheck:request', CoachCheckRequestSchema)],
+      cancellation: { parameter: 'signal' },
+      result: strictCodec('@local/dsh-train-core#train/coachCheck:result', ChainSnapshotSchema),
+    },
+    'train/coachReset': {
+      service: 'trainCoach',
+      implementation: 'reset',
+      description: 'Drop the ephemeral coach snapshot for one session/question pair.',
+      invocation: { kind: 'direct' as const },
+      parameters: [requestParameter('@local/dsh-train-core#train/coachReset:request', CoachResetRequestSchema)],
+      result: strictCodec('@local/dsh-train-core#train/coachReset:result', z.object({ ok: z.boolean() })),
+    },
+    'train/coachConfig': {
+      service: 'trainCoach',
+      implementation: 'config',
+      description: 'Read the coach provider/model/mode and chain count for settings.',
+      invocation: { kind: 'direct' as const },
+      parameters: [],
+      result: strictCodec('@local/dsh-train-core#train/coachConfig:result', CoachConfigResultSchema),
+    },
+    'train/coachProbe': {
+      service: 'trainCoach',
+      implementation: 'probe',
+      description: 'Probe only the configured local provider; never falls back to a cloud route.',
+      invocation: { kind: 'direct' as const },
+      parameters: [],
+      result: strictCodec('@local/dsh-train-core#train/coachProbe:result', CoachProbeResultSchema),
     },
   },
 }

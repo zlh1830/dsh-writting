@@ -8,6 +8,7 @@ export type TrainErrorCode =
   | 'POINTS_EXTRACT_FAILED'
   | 'JUDGE_FAILED'
   | 'NO_PROVIDER'
+  | 'CHAIN_NOT_FOUND'
 
 export class TrainError extends Error {
   override readonly name = 'TrainError'
