@@ -41,7 +41,14 @@ export function apply(ctx: Context, config: ConfigShape): void {
   const service = new JudgeService(ctx.trainStore, judgeConfig, {
     llm: () => {
       const runtime = ctx.llm as unknown as LlmRuntimeLike
-      return new DshLlmClient(runtime, resolveRoute(runtime, { provider: judgeConfig.provider, model: judgeConfig.model }), judgeConfig.requestTimeoutMs)
+      // Structured JSON extraction does not need a long reasoning budget; keeping
+      // effort low avoids burning the whole maxTokens allowance before any text.
+      return new DshLlmClient(
+        runtime,
+        resolveRoute(runtime, { provider: judgeConfig.provider, model: judgeConfig.model }),
+        judgeConfig.requestTimeoutMs,
+        'low',
+      )
     },
   })
 

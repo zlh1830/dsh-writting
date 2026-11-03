@@ -8,6 +8,14 @@
 
 - M0/M1 插件骨架与“写—判—改”MVP。
 
+### Fixed
+
+- 修复 `link:` 安装后 host 插件在 DSH 启动时 `failed to import`：仓库补齐插件运行时导入的 `@deepseek-ai/*` devDependencies（`dsh-sandbox`、`dsh-storage`、`dsh-scope` 等 9 个，`0.2.1-rc.5`）。
+- 修复 `storageDomain` 拒绝 domain 名 `dsh-train`（unit 名称只允许小写字母/数字/下划线）：改为 `dsh_train`，落盘目录 `storages/dsh_train/`。
+- 修复“答题”tab 空白：Client 插件在 render 中读 `ctx.remote.train` 触发 Cordis `cannot get property "remote.train" without inject`，slot entry 崩溃。改为在 `$mount` 之后用嵌套 `ctx.inject(['slots','remote.train'], …)` 取得命名空间并注册视图（`remote.<ns>` 是 traced 子服务，读取方必须声明该服务名）。
+- 修复答题视图在暗色主题下白底白字：改用 DSH 设计令牌 `--dsw-alias-*`（`label-primary`/`bg-layer-2`/`border-l2`/`state-*`），不再使用不存在的 `--dsh-panel` 等变量与 `color: inherit`。
+- 修复判分 `model returned no text`：`deepseek-flash` 在 `maxOutputTokens=1200` 时把输出预算全部用于推理、没有留下正文；判分调用改为 `reasoningEffort: low`，上限提到 4096，超时 60s，并把 `finish/chunks/tokens` 写进空回复错误便于定位。
+
 ## [0.1.0-mvp] - 2026-11-03
 
 ### Added

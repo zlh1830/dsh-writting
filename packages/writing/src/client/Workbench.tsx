@@ -17,32 +17,47 @@ export interface WritingWorkbenchProps {
   remote: TrainRemoteNamespace
 }
 
+/** DSH theme tokens (light/dark aware); fallbacks keep the view readable without a host theme. */
+const theme = {
+  text: 'var(--dsw-alias-label-primary, inherit)',
+  muted: 'var(--dsw-alias-label-tertiary, #6b7280)',
+  border: 'var(--dsw-alias-border-l2, #d5d9e2)',
+  borderStrong: 'var(--dsw-alias-border-l3, #cbd5e1)',
+  surface: 'var(--dsw-alias-bg-layer-2, #ffffff)',
+  raised: 'var(--dsw-alias-bg-layer-3, #f3f4f6)',
+  brand: 'var(--dsw-alias-brand-primary, #2563eb)',
+  onBrand: 'var(--dsw-alias-label-primary-foreground, #ffffff)',
+  success: 'var(--dsw-alias-state-success-primary, #15803d)',
+  warn: 'var(--dsw-alias-state-warn-primary, #b45309)',
+  danger: 'var(--dsw-alias-state-error-primary, #b91c1c)',
+} as const
+
 const styles = {
-  page: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', minHeight: 0, padding: '12px 16px 16px', boxSizing: 'border-box' } as CSSProperties,
-  card: { border: '1px solid var(--dsh-border, #d5d9e2)', borderRadius: 10, padding: 12, background: 'var(--dsh-panel, #fff)' } as CSSProperties,
-  sticky: { position: 'sticky', top: 0, zIndex: 3, border: '1px solid var(--dsh-border, #d5d9e2)', borderRadius: 10, padding: 12, background: 'var(--dsh-panel, #fff)', boxShadow: '0 2px 10px rgba(15, 23, 42, 0.06)' } as CSSProperties,
+  page: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', minHeight: 0, padding: '12px 16px 16px', boxSizing: 'border-box', color: theme.text } as CSSProperties,
+  card: { border: `1px solid ${theme.border}`, borderRadius: 10, padding: 12, background: theme.surface, color: theme.text } as CSSProperties,
+  sticky: { position: 'sticky', top: 0, zIndex: 3, border: `1px solid ${theme.border}`, borderRadius: 10, padding: 12, background: theme.surface, color: theme.text, boxShadow: '0 2px 10px rgba(15, 23, 42, 0.12)' } as CSSProperties,
   row: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } as CSSProperties,
-  muted: { color: 'var(--dsh-text-muted, #6b7280)', fontSize: 12 } as CSSProperties,
-  title: { fontSize: 15, fontWeight: 600 } as CSSProperties,
+  muted: { color: theme.muted, fontSize: 12 } as CSSProperties,
+  title: { fontSize: 15, fontWeight: 600, color: theme.text } as CSSProperties,
   main: { display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap', minHeight: 0 } as CSSProperties,
   editorColumn: { flex: '1 1 460px', minWidth: 320, display: 'flex', flexDirection: 'column', gap: 8 } as CSSProperties,
   sideColumn: { flex: '1 1 380px', minWidth: 300, display: 'flex', flexDirection: 'column', gap: 10 } as CSSProperties,
-  textarea: { width: '100%', minHeight: 380, resize: 'vertical', boxSizing: 'border-box', padding: 12, lineHeight: 1.8, fontSize: 14, borderRadius: 8, border: '1px solid var(--dsh-border, #d5d9e2)', background: 'var(--dsh-panel, #fff)', color: 'inherit', fontFamily: 'inherit' } as CSSProperties,
-  bar: { display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', padding: '8px 10px', borderRadius: 8, background: 'var(--dsh-subtle, #f3f4f6)' } as CSSProperties,
-  button: { padding: '6px 14px', borderRadius: 7, border: '1px solid var(--dsh-border, #cbd5e1)', background: 'var(--dsh-panel, #fff)', color: 'inherit', cursor: 'pointer', fontSize: 13 } as CSSProperties,
-  primary: { padding: '7px 16px', borderRadius: 7, border: '1px solid #2563eb', background: '#2563eb', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 } as CSSProperties,
+  textarea: { width: '100%', minHeight: 380, resize: 'vertical', boxSizing: 'border-box', padding: 12, lineHeight: 1.8, fontSize: 14, borderRadius: 8, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.text, fontFamily: 'inherit' } as CSSProperties,
+  bar: { display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', padding: '8px 10px', borderRadius: 8, background: theme.raised, color: theme.text } as CSSProperties,
+  button: { padding: '6px 14px', borderRadius: 7, border: `1px solid ${theme.borderStrong}`, background: theme.surface, color: theme.text, cursor: 'pointer', fontSize: 13 } as CSSProperties,
+  primary: { padding: '7px 16px', borderRadius: 7, border: `1px solid ${theme.brand}`, background: theme.brand, color: theme.onBrand, cursor: 'pointer', fontSize: 13, fontWeight: 600 } as CSSProperties,
   disabled: { opacity: 0.55, cursor: 'not-allowed' } as CSSProperties,
-  error: { border: '1px solid #fca5a5', background: '#fef2f2', color: '#991b1b', borderRadius: 8, padding: '8px 10px', fontSize: 13 } as CSSProperties,
-  notice: { border: '1px solid #93c5fd', background: '#eff6ff', color: '#1e3a8a', borderRadius: 8, padding: '8px 10px', fontSize: 13 } as CSSProperties,
-  score: { fontSize: 30, fontWeight: 700, lineHeight: 1.1 } as CSSProperties,
+  error: { border: `1px solid ${theme.danger}`, background: 'rgba(220, 38, 38, 0.08)', color: theme.danger, borderRadius: 8, padding: '8px 10px', fontSize: 13 } as CSSProperties,
+  notice: { border: `1px solid ${theme.brand}`, background: 'rgba(37, 99, 235, 0.10)', color: theme.brand, borderRadius: 8, padding: '8px 10px', fontSize: 13 } as CSSProperties,
+  score: { fontSize: 30, fontWeight: 700, lineHeight: 1.1, color: theme.text } as CSSProperties,
   badge: { display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: 12, border: '1px solid currentColor' } as CSSProperties,
-  sectionTitle: { fontSize: 13, fontWeight: 600, margin: '4px 0' } as CSSProperties,
-  pre: { whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0, fontFamily: 'inherit', lineHeight: 1.75, fontSize: 13 } as CSSProperties,
-  paragraph: { margin: '0 0 8px', lineHeight: 1.9, fontSize: 14 } as CSSProperties,
-  mark: { background: '#fde68a', borderRadius: 3, padding: '0 1px' } as CSSProperties,
-  historyRow: { display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 8px', borderRadius: 6, cursor: 'pointer', fontSize: 13 } as CSSProperties,
-  pointRow: { display: 'flex', gap: 6, alignItems: 'flex-start', fontSize: 12, padding: '3px 0' } as CSSProperties,
-  suggestion: { border: '1px solid var(--dsh-border, #e5e7eb)', borderRadius: 8, padding: '7px 9px', cursor: 'pointer', background: 'var(--dsh-panel, #fff)' } as CSSProperties,
+  sectionTitle: { fontSize: 13, fontWeight: 600, margin: '4px 0', color: theme.text } as CSSProperties,
+  pre: { whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0, fontFamily: 'inherit', lineHeight: 1.75, fontSize: 13, color: theme.text } as CSSProperties,
+  paragraph: { margin: '0 0 8px', lineHeight: 1.9, fontSize: 14, color: theme.text } as CSSProperties,
+  mark: { background: '#fde68a', color: '#111827', borderRadius: 3, padding: '0 1px' } as CSSProperties,
+  historyRow: { display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 8px', borderRadius: 6, cursor: 'pointer', fontSize: 13, color: theme.text } as CSSProperties,
+  pointRow: { display: 'flex', gap: 6, alignItems: 'flex-start', fontSize: 12, padding: '3px 0', color: theme.text } as CSSProperties,
+  suggestion: { border: `1px solid ${theme.border}`, borderRadius: 8, padding: '7px 9px', cursor: 'pointer', background: theme.surface, color: theme.text } as CSSProperties,
 } satisfies Record<string, CSSProperties>
 
 export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
@@ -185,6 +200,7 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
       const judged = await remote.judge({ attemptId: saved.value.attemptId })
       if (!judged.ok) {
         setError(`稿件已保存（${saved.value.attemptId}），判分失败：${remoteErrorText(judged.error)}。可直接重试判分。`)
+        await loadHistory(question.id)
         return
       }
       setJudge(judged.value)
@@ -204,6 +220,7 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
       const judged = await remote.judge({ attemptId: lastAttemptId })
       if (!judged.ok) {
         setError(`判分失败：${remoteErrorText(judged.error)}`)
+        if (question !== null) await loadHistory(question.id)
         return
       }
       setJudge(judged.value)
@@ -217,7 +234,7 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
 
   const preview = useMemo(() => renderAnchorPreview(content, focusAnchor), [content, focusAnchor])
   const percent = question === null || question.wordLimit <= 0 ? 0 : words / question.wordLimit
-  const quotaColor = percent < 0.8 ? '#15803d' : percent <= 1 ? '#b45309' : '#b91c1c'
+  const quotaColor = percent < 0.8 ? theme.success : percent <= 1 ? theme.warn : theme.danger
 
   if (loading) {
     return (
@@ -232,7 +249,7 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
       <div style={styles.sticky}>
         <div style={{ ...styles.row, justifyContent: 'space-between' }}>
           <div style={styles.row}>
-            <span style={{ ...styles.badge, color: '#2563eb' }}>答题</span>
+            <span style={{ ...styles.badge, color: theme.brand }}>答题</span>
             {question === null ? (
               <span style={styles.muted}>题库为空</span>
             ) : (
@@ -241,7 +258,7 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
                 <span style={styles.muted}>{question.topic}</span>
                 <span style={styles.muted}>上限 {question.wordLimit} 字</span>
                 <span style={styles.muted}>采分点 {question.points.length}</span>
-                {question.points.length === 0 ? <span style={{ ...styles.badge, color: '#b45309' }}>采分点待抽取</span> : null}
+                {question.points.length === 0 ? <span style={{ ...styles.badge, color: theme.warn }}>采分点待抽取</span> : null}
               </>
             )}
           </div>
@@ -384,14 +401,14 @@ function ScoreCard({ judge, onFocus }: { judge: JudgeResult; onFocus: (anchor: s
       <div style={{ ...styles.row, justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
           <div style={styles.muted}>总分</div>
-          <div style={{ ...styles.score, color: judge.pass ? '#15803d' : '#1f2937' }}>{judge.score}</div>
+          <div style={{ ...styles.score, color: judge.pass ? theme.success : theme.text }}>{judge.score}</div>
         </div>
         <div style={styles.row}>
-          <span style={{ ...styles.badge, color: judge.pass ? '#15803d' : '#b45309' }}>
+          <span style={{ ...styles.badge, color: judge.pass ? theme.success : theme.warn }}>
             {judge.pass ? '达标' : '未达标'}
           </span>
-          <span style={{ ...styles.badge, color: '#6b7280' }}>{judge.thresholdState === 'calibrating' ? '校准中' : '已校准'}</span>
-          {judge.unstable ? <span style={{ ...styles.badge, color: '#b91c1c' }}>波动较大</span> : null}
+          <span style={{ ...styles.badge, color: theme.muted }}>{judge.thresholdState === 'calibrating' ? '校准中' : '已校准'}</span>
+          {judge.unstable ? <span style={{ ...styles.badge, color: theme.danger }}>波动较大</span> : null}
         </div>
       </div>
 
@@ -407,7 +424,7 @@ function ScoreCard({ judge, onFocus }: { judge: JudgeResult; onFocus: (anchor: s
       {judge.points.length === 0 ? <div style={styles.muted}>本题暂无采分点。</div> : null}
       {judge.points.map((point) => (
         <div key={point.id} style={styles.pointRow}>
-          <span style={{ ...styles.badge, color: point.status === 'hit' ? '#15803d' : point.status === 'partial' ? '#b45309' : '#b91c1c', flex: '0 0 auto' }}>
+          <span style={{ ...styles.badge, color: point.status === 'hit' ? theme.success : point.status === 'partial' ? theme.warn : theme.danger, flex: '0 0 auto' }}>
             {point.status === 'hit' ? '命中' : point.status === 'partial' ? '部分' : '未命中'}
           </span>
           <span>{point.id}{point.anchor === undefined ? '' : ` · ${point.anchor}`}</span>
@@ -431,13 +448,13 @@ function ScoreCard({ judge, onFocus }: { judge: JudgeResult; onFocus: (anchor: s
           <div key={suggestion.id} style={styles.suggestion} onClick={() => onFocus(suggestion.anchor)}>
             <div style={{ ...styles.row, justifyContent: 'space-between' }}>
               <span style={{ fontWeight: 600, fontSize: 13 }}>{suggestion.anchor} · {suggestion.issueType}</span>
-              <span style={{ ...styles.badge, color: suggestion.impact === 'high' ? '#b91c1c' : suggestion.impact === 'mid' ? '#b45309' : '#6b7280' }}>
+              <span style={{ ...styles.badge, color: suggestion.impact === 'high' ? theme.danger : suggestion.impact === 'mid' ? theme.warn : theme.muted }}>
                 {suggestion.impact === 'high' ? '高影响' : suggestion.impact === 'mid' ? '中影响' : '低影响'}
               </span>
             </div>
             <div style={{ fontSize: 13, marginTop: 4 }}>{suggestion.direction}</div>
             {suggestion.evidence.length > 0 ? <div style={{ ...styles.muted, marginTop: 3 }}>依据：{suggestion.evidence}</div> : null}
-            {suggestion.guard === true ? <div style={{ ...styles.muted, color: '#b45309', marginTop: 3 }}>已按训练规则收敛</div> : null}
+            {suggestion.guard === true ? <div style={{ ...styles.muted, color: theme.warn, marginTop: 3 }}>已按训练规则收敛</div> : null}
           </div>
         ))}
       </div>
@@ -457,8 +474,8 @@ function DimensionBar({ label, value }: { label: string; value: number }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
       <span style={{ ...styles.muted, width: 76, flex: '0 0 auto' }}>{label}</span>
-      <div style={{ flex: 1, height: 7, borderRadius: 999, background: '#e5e7eb', overflow: 'hidden' }}>
-        <div style={{ width: `${normalized}%`, height: '100%', background: normalized >= 85 ? '#16a34a' : normalized >= 60 ? '#d97706' : '#dc2626' }} />
+      <div style={{ flex: 1, height: 7, borderRadius: 999, background: theme.raised, overflow: 'hidden' }}>
+        <div style={{ width: `${normalized}%`, height: '100%', background: normalized >= 85 ? theme.success : normalized >= 60 ? theme.warn : theme.danger }} />
       </div>
       <span style={{ ...styles.muted, width: 30, textAlign: 'right' }}>{Math.round(value)}</span>
     </div>

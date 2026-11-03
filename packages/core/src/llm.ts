@@ -20,6 +20,7 @@ export interface LlmStreamOptions {
   readonly messages: readonly LlmTextMessage[]
   readonly temperature?: number
   readonly maxTokens?: number
+  readonly reasoningEffort?: string
   readonly signal?: AbortSignal
 }
 
@@ -102,6 +103,7 @@ export class DshLlmClient implements LlmClient {
     private readonly runtime: LlmRuntimeLike,
     private readonly route: LlmRoute,
     private readonly timeoutMs: number,
+    private readonly reasoningEffort?: string,
   ) {}
 
   async complete(input: LlmCompleteInput): Promise<LlmCompletion> {
@@ -113,6 +115,7 @@ export class DshLlmClient implements LlmClient {
     let usage: TokenUsage = { input: 0, output: 0 }
     let finish = 'unknown'
     let truncated = false
+    let chunks = 0
     try {
       const stream = this.runtime.stream({
         provider: this.route.provider,
@@ -121,9 +124,11 @@ export class DshLlmClient implements LlmClient {
         messages: [{ role: 'user', content: [{ type: 'text', text: input.user }] }],
         temperature: 0,
         maxTokens: input.maxTokens,
+        ...(this.reasoningEffort === undefined ? {} : { reasoningEffort: this.reasoningEffort }),
         signal,
       })
       for await (const chunk of stream) {
+        chunks += 1
         if (chunk.type === 'text-delta' && chunk.text !== undefined) text += chunk.text
         if (chunk.type === 'usage' && chunk.usage !== undefined) {
           usage = {
@@ -152,7 +157,11 @@ export class DshLlmClient implements LlmClient {
     }
 
     if (text.trim().length === 0) {
-      throw new LlmRouteError('LLM_ERROR', 'model returned no text')
+      const detail = `${this.route.provider}/${this.route.model}, finish=${finish}, chunks=${chunks}, tokens=${usage.input}/${usage.output}, maxTokens=${input.maxTokens}`
+      throw new LlmRouteError(
+        truncated ? 'TRUNCATED' : 'LLM_ERROR',
+        truncated ? `model hit max tokens before any text (${detail})` : `model returned no text (${detail})`,
+      )
     }
     return { text, usage, finish, truncated }
   }

@@ -19,7 +19,9 @@ import { defineDomain, domainTable, type Domain, type KvTable } from '@deepseek-
 import { parseQuestionMarkdown, serializeQuestionMarkdown, toQuestionSummary } from './markdown.js'
 
 export const TrainDomain = defineDomain({
-  name: 'dsh-train',
+  // storageDomain unit names must match /^[a-z][a-z0-9_]*$/: hyphens are rejected,
+  // so the on-disk domain directory is `storages/dsh_train/`.
+  name: 'dsh_train',
   version: 1,
   layout: 'per-record',
   tables: {

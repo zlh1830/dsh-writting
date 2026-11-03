@@ -15,8 +15,10 @@
         model: deepseek-flash
         passThreshold: 90
         thresholdState: calibrating
-        requestTimeoutMs: 45000
-        maxOutputTokens: 1200
+        requestTimeoutMs: 60000
+        # deepseek-flash spends output budget on reasoning before the JSON answer;
+        # 1200 tokens was exhausted before any text, so the judge saw an empty reply.
+        maxOutputTokens: 4096
         weights:
           coverage: 0.4
           chain: 0.2
