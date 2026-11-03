@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import {
   countWords,
+  hashText,
   splitParagraphs,
   splitSentences,
   type HistoryEntry,
@@ -75,9 +76,23 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
   const [focusAnchor, setFocusAnchor] = useState<string | null>(null)
   const [lastAttemptId, setLastAttemptId] = useState<string | null>(null)
   const previewRef = useRef<HTMLDivElement | null>(null)
+  const draftRef = useRef({ questionId: null as string | null, content: '', elapsedMs: 0, running: false })
+  draftRef.current = { questionId: question?.id ?? null, content, elapsedMs, running }
 
   const words = countWords(content)
   const questionId = question?.id ?? null
+
+  const persistDraft = useCallback(() => {
+    const draft = draftRef.current
+    if (draft.questionId === null) return
+    saveDraft(sessionId, {
+      questionId: draft.questionId,
+      content: draft.content,
+      elapsedMs: draft.elapsedMs,
+      running: draft.running,
+      updatedAt: Date.now(),
+    })
+  }, [sessionId])
 
   const loadHistory = useCallback(
     async (id: string) => {
@@ -146,19 +161,30 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
     return () => clearInterval(timer)
   }, [running])
 
+  // Persist synchronously on every text change: the previous 2s debounce depended
+  // on `elapsedMs`, so the running clock reset it every second and no draft was
+  // ever written. Timer/state is refreshed by the interval below and flushed on
+  // unmount/pagehide so switching tabs or refreshing never loses the draft.
+  useEffect(() => {
+    persistDraft()
+  }, [content, persistDraft])
+
   useEffect(() => {
     if (questionId === null) return
-    const timer = setTimeout(() => {
-      saveDraft(sessionId, {
-        questionId,
-        content,
-        elapsedMs,
-        running,
-        updatedAt: Date.now(),
-      })
-    }, 2000)
-    return () => clearTimeout(timer)
-  }, [content, elapsedMs, questionId, running, sessionId])
+    const timer = setInterval(persistDraft, 2000)
+    return () => clearInterval(timer)
+  }, [questionId, persistDraft])
+
+  useEffect(() => {
+    const flush = () => persistDraft()
+    globalThis.addEventListener?.('pagehide', flush)
+    globalThis.document?.addEventListener?.('visibilitychange', flush)
+    return () => {
+      flush()
+      globalThis.removeEventListener?.('pagehide', flush)
+      globalThis.document?.removeEventListener?.('visibilitychange', flush)
+    }
+  }, [persistDraft])
 
   useEffect(() => {
     if (focusAnchor === null || previewRef.current === null) return
@@ -175,6 +201,36 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
     if (question === null || busy !== null) return
     if (words < 50) {
       setError(`作答至少需要 50 字，当前 ${words} 字；继续写作后再提交。`)
+      return
+    }
+    // Unchanged text must not create another Attempt: show the existing scorecard
+    // (or judge the existing attempt if it never got one) instead of pushing the
+    // history down with duplicates.
+    const latest = history[0]
+    if (latest !== undefined && latest.attempt.sessionId === sessionId && latest.attempt.contentHash === hashText(content)) {
+      setError(null)
+      setLastAttemptId(latest.attempt.attemptId)
+      if (latest.judge !== null) {
+        setJudge(latest.judge)
+        setFocusAnchor(latest.judge.suggestions[0]?.anchor ?? null)
+        setNotice('内容未修改，未新增提交；已展示上一次评分。')
+        return
+      }
+      setNotice('内容未修改，未新增提交；正在补判上一次提交。')
+      setBusy('judging')
+      try {
+        const judged = await remote.judge({ attemptId: latest.attempt.attemptId })
+        if (!judged.ok) {
+          setError(`判分失败：${remoteErrorText(judged.error)}`)
+          return
+        }
+        setJudge(judged.value)
+        setFocusAnchor(judged.value.suggestions[0]?.anchor ?? null)
+        setNotice(`判分完成：${judged.value.score} 分。`)
+        await loadHistory(question.id)
+      } finally {
+        setBusy(null)
+      }
       return
     }
     if (words > question.wordLimit) {
@@ -367,26 +423,31 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
           )}
 
           <div style={styles.card}>
-            <div style={styles.sectionTitle}>历史 Attempt</div>
+            <div style={{ ...styles.row, justifyContent: 'space-between' }}>
+              <div style={styles.sectionTitle}>历史 Attempt</div>
+              {history.length > 0 ? <span style={styles.muted}>最近 {history.length} 次 · 可滚动</span> : null}
+            </div>
             {history.length === 0 ? (
               <div style={styles.muted}>本题还没有提交记录。</div>
             ) : (
-              history.map((entry) => (
-                <div
-                  key={entry.attempt.attemptId}
-                  style={styles.historyRow}
-                  onClick={() => {
-                    if (entry.judge !== null) {
-                      setJudge(entry.judge)
-                      setFocusAnchor(entry.judge.suggestions[0]?.anchor ?? null)
-                      setNotice(`正在查看历史评分（第 ${entry.attempt.attemptNo} 次提交）。`)
-                    }
-                  }}
-                >
-                  <span>第 {entry.attempt.attemptNo} 次 · {entry.attempt.wordCount} 字</span>
-                  <span style={{ fontWeight: 600 }}>{entry.judge === null ? '未判分' : `${entry.judge.score} 分`}</span>
-                </div>
-              ))
+              <div style={{ display: 'flex', flexDirection: 'column', maxHeight: 200, overflowY: 'auto', marginTop: 4 }}>
+                {history.map((entry) => (
+                  <div
+                    key={entry.attempt.attemptId}
+                    style={styles.historyRow}
+                    onClick={() => {
+                      if (entry.judge !== null) {
+                        setJudge(entry.judge)
+                        setFocusAnchor(entry.judge.suggestions[0]?.anchor ?? null)
+                        setNotice(`正在查看历史评分（第 ${entry.attempt.attemptNo} 次提交）。`)
+                      }
+                    }}
+                  >
+                    <span>第 {entry.attempt.attemptNo} 次 · {entry.attempt.wordCount} 字</span>
+                    <span style={{ fontWeight: 600 }}>{entry.judge === null ? '未判分' : `${entry.judge.score} 分`}</span>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>

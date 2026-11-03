@@ -112,7 +112,9 @@ export class QuestionBankService {
 
   async getHistory(questionId: string): Promise<Awaited<ReturnType<TrainStore['getHistory']>>> {
     await this.getQuestion(questionId)
-    return this.store.getHistory(questionId, 5)
+    // The view renders a scrollable list; keep enough rows that earlier attempts
+    // stay reachable instead of silently falling off the end.
+    return this.store.getHistory(questionId, 20)
   }
 
   summaryOf(question: Question): string {
