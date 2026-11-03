@@ -1,5 +1,7 @@
 # 写作训练插件（dsh-train）
 
+> 仓库：<https://github.com/zlh1830/dsh-writting>（main 分支，tag `v0.0.1-spike` / `v0.1.0-mvp`）
+
 面向 DSH Web 的本地优先写作训练插件：题库导入、全幅答题、单次判分、评分卡与历史。
 
 当前版本完成 M0 + M1（写 → 判 → 改 → 历史 MVP）。答题视图、Host 判分服务、storageDomain 持久化与可安装 bundle 均已落地；实时教练、对比视图、门槛兜底等属于后续轮次。
