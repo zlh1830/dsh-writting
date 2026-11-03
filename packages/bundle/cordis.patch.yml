@@ -1,0 +1,29 @@
+# dsh-train bundle patch: mounts the host plugins and the answer view.
+# Config overrides are applied by later patch layers (profile / --patch).
+- insert:
+    - id: train-questionbank
+      name: '@local/dsh-train-questionbank'
+      config:
+        dataDir: train
+        provider: deepseek-account
+        model: deepseek-flash
+
+    - id: train-judge-cloud
+      name: '@local/dsh-train-judge-cloud'
+      config:
+        provider: deepseek-account
+        model: deepseek-flash
+        passThreshold: 90
+        thresholdState: calibrating
+        requestTimeoutMs: 45000
+        maxOutputTokens: 1200
+        weights:
+          coverage: 0.4
+          chain: 0.2
+          elements: 0.2
+          language: 0.1
+          material: 0.1
+
+    - id: train-writing
+      name: '@local/dsh-train-writing'
+      config: {}

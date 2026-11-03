@@ -1,0 +1,35 @@
+{
+  "name": "@local/dsh-train",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "icon": "./icon.svg",
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg"
+  ],
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@local/dsh-train-core": "file:../core",
+    "@local/dsh-train-questionbank": "file:../questionbank",
+    "@local/dsh-train-judge-cloud": "file:../judge-cloud",
+    "@local/dsh-train-writing": "file:../writing"
+  }
+}
