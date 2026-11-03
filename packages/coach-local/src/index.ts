@@ -28,7 +28,8 @@ export { Config }
 export const name = 'train-coach-local'
 export const inject = ['llm', 'trainStore']
 
-class CoachRemote extends TypertRemoteService {
+/** Exported for the remote-name contract test. */
+export class CoachRemote extends TypertRemoteService {
   constructor(
     ctx: Context,
     private readonly service: CoachService,
@@ -41,27 +42,27 @@ class CoachRemote extends TypertRemoteService {
     return this.service.getChain(GetChainRequestSchema.parse(request))
   }
 
-  @Remote
+  @Remote('coachScan')
   async scan(request: CoachScanRequest, signal: AbortSignal): Promise<ChainSnapshot> {
     return this.service.scan(CoachScanRequestSchema.parse(request), signal)
   }
 
-  @Remote
+  @Remote('coachCheck')
   async check(request: CoachCheckRequest, signal: AbortSignal): Promise<ChainSnapshot> {
     return this.service.check(CoachCheckRequestSchema.parse(request), signal)
   }
 
-  @Remote
+  @Remote('coachReset')
   async reset(request: CoachResetRequest): Promise<{ ok: boolean }> {
     return this.service.reset(CoachResetRequestSchema.parse(request))
   }
 
-  @Remote
+  @Remote('coachConfig')
   async config(): Promise<CoachConfigResult> {
     return this.service.configResult()
   }
 
-  @Remote
+  @Remote('coachProbe')
   async probe(): Promise<CoachProbeResult> {
     return this.service.probe()
   }

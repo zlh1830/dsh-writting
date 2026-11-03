@@ -281,11 +281,11 @@ export function CoachPanel({ sessionId, question, remote, content, textareaRef, 
             </div>
           </div>
 
-          <div style={styles.linkList}>
+          <div style={{ ...styles.linkList, maxHeight: 260, overflowY: 'auto' }}>
             {missing.length === 0 ? (
               <div style={{ ...styles.muted, color: theme.success }}>必答环节已覆盖。可继续写作或检查链条。</div>
             ) : (
-              missing.slice(0, 8).map((link) => {
+              missing.map((link) => {
                 const state: LinkState = states[link] ?? 'missing'
                 return (
                   <button key={link} type="button" style={styles.linkCard} onClick={() => onInsert(link)} title="插入待补标记">
@@ -297,7 +297,6 @@ export function CoachPanel({ sessionId, question, remote, content, textareaRef, 
                 )
               })
             )}
-            {missing.length > 8 ? <div style={styles.muted}>还有 {missing.length - 8} 项…</div> : null}
           </div>
 
           {chain.optional.length > 0 ? (
