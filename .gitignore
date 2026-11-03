@@ -1,0 +1,26 @@
+node_modules/
+lib/
+dist/
+coverage/
+.pnpm-store/
+.pnpm-cache/
+.pnpm-home/
+.pnpm-local/
+.npm-cache/
+.npm-home/
+.corepack/
+.home/
+.tmp/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+
+# training data and local config must never enter the repository
+private/
+.data/
+fixtures/private/
+*.local.json
+*.secret.*

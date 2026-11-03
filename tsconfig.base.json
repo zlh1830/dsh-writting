@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "sourceMap": true,
+    "noImplicitOverride": true,
+    "forceConsistentCasingInFileNames": true,
+    "jsx": "react-jsx",
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@local/dsh-train-core/remote": ["packages/core/src/remote.ts"],
+      "@local/dsh-train-core": ["packages/core/src/index.ts"],
+      "@local/dsh-train-questionbank": ["packages/questionbank/src/index.ts"],
+      "@local/dsh-train-judge-cloud": ["packages/judge-cloud/src/index.ts"],
+      "@local/dsh-train-writing": ["packages/writing/src/index.ts"]
+    }
+  }
+}

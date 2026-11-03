@@ -1,0 +1,23 @@
+{
+  "dimensions": {
+    "coverage": 80,
+    "chain": 70,
+    "elements": 75,
+    "language": 85,
+    "material": 80
+  },
+  "points": [
+    { "id": "p1", "status": "hit", "anchor": "1:1", "note": "写明了受理单位和时间" },
+    { "id": "p2", "status": "partial", "anchor": "2:1", "note": "有核查动作但缺结论" },
+    { "id": "p3", "status": "miss" }
+  ],
+  "missingLinks": ["时限", "回访验收"],
+  "missingPoints": ["完成时限"],
+  "suggestions": [
+    { "anchor": "2:1", "issueType": "缺环节", "direction": "补写现场核查的完成时限和责任人", "evidence": "第二段第一句", "impact": "high" },
+    { "anchor": "1:1", "issueType": "缺材料点", "direction": "补充受理登记编号和承办单位联系方式", "evidence": "第一段第一句", "impact": "mid" }
+  ],
+  "emptyPhrases": [],
+  "formatIssues": [],
+  "resolved": []
+}
