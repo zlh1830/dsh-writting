@@ -8,6 +8,27 @@ export interface DraftState {
 
 const PREFIX = 'dsh.train.draft.v1'
 
+/** Judge engine preference is per browser, not per draft: one click switches every question. */
+const ENGINE_KEY = 'dsh.train.judgeEngine.v1'
+
+export type JudgeEnginePreference = 'cloud' | 'local'
+
+export function loadJudgeEngine(): JudgeEnginePreference {
+  try {
+    return globalThis.localStorage?.getItem(ENGINE_KEY) === 'local' ? 'local' : 'cloud'
+  } catch {
+    return 'cloud'
+  }
+}
+
+export function saveJudgeEngine(engine: JudgeEnginePreference): void {
+  try {
+    globalThis.localStorage?.setItem(ENGINE_KEY, engine)
+  } catch {
+    // A disabled localStorage must not break submitting.
+  }
+}
+
 function keyOf(sessionId: string, questionId: string): string {
   return `${PREFIX}.${sessionId}.${questionId}`
 }

@@ -8,6 +8,8 @@ export type TrainErrorCode =
   | 'POINTS_EXTRACT_FAILED'
   | 'JUDGE_FAILED'
   | 'NO_PROVIDER'
+  /** The local judge engine was requested but its provider is not mounted. */
+  | 'NO_LOCAL_JUDGE'
   | 'CHAIN_NOT_FOUND'
 
 export class TrainError extends Error {

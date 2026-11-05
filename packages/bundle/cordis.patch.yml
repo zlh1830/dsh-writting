@@ -25,8 +25,15 @@
     - id: train-judge-cloud
       name: '@local/dsh-train-judge-cloud'
       config:
+        # Default engine; the answer view can switch per submission.
+        engine: cloud
         provider: deepseek-account
         model: deepseek-flash
+        # Local engine: never falls back to the cloud, thinking stays off via the provider compat.
+        localProvider: train-local
+        localModel: qwen2.5:3b
+        localRequestTimeoutMs: 60000
+        localMaxOutputTokens: 1600
         passThreshold: 90
         thresholdState: calibrating
         requestTimeoutMs: 60000

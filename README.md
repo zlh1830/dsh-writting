@@ -63,6 +63,34 @@ dsh --profile web --dump-config | Select-String 'train-'
 
 异机安装、模型配置、验收步骤与回滚见本地私有文档 `private/docs/internal/test/m2-transfer-test.md`（不随仓库发布）。
 
+## 审核引擎：云端 / 本地（M2.1）
+
+提交判分时可以选择用哪个模型审核，设置就在答题页底部：
+
+- **云端判分**（默认）：沿用已校准的 `deepseek-account / deepseek-flash` 口径，`maxOutputTokens 4096`。
+- **本地模型审核**（实验）：把同一份判分载荷发给 `train-local`（OpenAI-compatible 本地路由），**不联网、不回退云端**；本地 provider 没挂载时直接报 `NO_LOCAL_JUDGE`，不会偷偷用云端打分。
+- 选择记在浏览器本地（`dsh.train.judgeEngine.v1`），刷新后保留；评分卡上会标注「云端 / 本地模型」，并记录实际 `modelId` 与 `promptVersion`（`judge-v1` / `judge-local-v1`）。
+- 本地审核用更短的提示词（小模型容易漏采分点，提示里直接列出本题采分点 id），失败仍按原逻辑重试一次再报错。
+
+配置项（`train-judge-cloud`）：
+
+```yaml
+- id: train-judge-cloud
+  name: '@local/dsh-train-judge-cloud'
+  config:
+    engine: cloud                 # 默认引擎，答题页可逐次覆盖
+    provider: deepseek-account
+    model: deepseek-flash
+    localProvider: train-local    # 本地引擎的路由，绝不回退云端
+    localModel: qwen2.5:3b
+    localRequestTimeoutMs: 60000
+    localMaxOutputTokens: 1600
+```
+
+> 注意：profile patch 里的 `config` 是**整体替换**，不是逐字段合并；只写一半会把 `maxOutputTokens` 等重置成默认值，云端判分可能被 reasoning 截断。
+
+桌面版（Electron）的 profile 不能被 `dsh plugin add` 管理（会报 `profile "desktop" is managed exclusively by the Electron application`）；手工安装见 `private/docs/internal/test/m2-transfer-test.md` §4.1。
+
 ## 仓库与隐私边界
 
 本项目按“代码公开、资料本地”的方式管理：

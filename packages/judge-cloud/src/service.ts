@@ -6,17 +6,30 @@ import {
   TrainError,
   type Attempt,
   type JudgeConfig,
+  type JudgeEngine,
   type JudgeResult,
   type LlmClient,
   type Question,
   type TrainStore,
 } from '@local/dsh-train-core'
-import { buildJudgePayload, JUDGE_SYSTEM_PROMPT } from './prompt.js'
+import { buildJudgePayload, judgeSystemPrompt } from './prompt.js'
 
 export interface JudgeServiceOptions {
-  /** Built lazily so a missing provider surfaces as a normal judge failure, not plugin activation failure. */
-  llm: () => LlmClient
+  /**
+   * Built lazily so a missing provider surfaces as a normal judge failure, not
+   * plugin activation failure. The engine is passed because `local` must never
+   * fall back to the cloud route (and vice versa).
+   */
+  llm: (engine: JudgeEngine) => LlmClient
   now?: () => number
+}
+
+export interface JudgeOptions {
+  /** Overrides the configured default engine for this call. */
+  engine?: JudgeEngine
+  /** Re-judge even when a scorecard for the attempt already exists. */
+  force?: boolean
+  signal?: AbortSignal
 }
 
 export interface PreviousJudge {
@@ -32,17 +45,20 @@ export class JudgeService {
     private readonly options: JudgeServiceOptions,
   ) {}
 
-  async judge(attemptId: string, signal?: AbortSignal): Promise<JudgeResult> {
+  async judge(attemptId: string, options: JudgeOptions = {}): Promise<JudgeResult> {
+    const engine = normalizeEngine(options.engine ?? this.config.engine)
     const existing = await this.store.getJudge(attemptId)
-    if (existing !== undefined) return existing
+    // A scorecard belongs to the engine that produced it: switching engines must
+    // re-judge instead of silently returning the other model's score.
+    if (existing !== undefined && engineOf(existing) === engine && options.force !== true) return existing
 
     const attempt = await this.store.getAttempt(attemptId)
     if (attempt === undefined) throw new TrainError('ATTEMPT_NOT_FOUND', `attempt "${attemptId}" was not found`)
     const question = await this.store.getQuestion(attempt.questionId)
     if (question === undefined) throw new TrainError('QUESTION_NOT_FOUND', `question "${attempt.questionId}" was not found`)
 
-    const recent = await this.store.findRecentJudge(question.id, attempt.contentHash, 60_000)
-    if (recent !== undefined) {
+    const recent = options.force === true ? undefined : await this.store.findRecentJudge(question.id, attempt.contentHash, 60_000)
+    if (recent !== undefined && engineOf(recent) === engine) {
       const cached: JudgeResult = {
         ...recent,
         attemptId,
@@ -58,22 +74,25 @@ export class JudgeService {
     // `previous` feeds the server-side instability flag only; sending an
     // unexplained prior result to the model made it penalize the revision.
     const payload = buildJudgePayload(question, attempt, this.config)
+    const system = judgeSystemPrompt(engine, question)
+    const maxTokens = engine === 'local' ? this.config.localMaxOutputTokens : this.config.maxOutputTokens
+    const modelId = engine === 'local' ? this.config.localModel || this.config.model : this.config.model
     let client: LlmClient
     try {
-      client = this.options.llm()
+      client = this.options.llm(engine)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      throw new TrainError('NO_PROVIDER', message)
+      throw new TrainError(engine === 'local' ? 'NO_LOCAL_JUDGE' : 'NO_PROVIDER', message)
     }
 
     let lastError: unknown
     for (let pass = 0; pass < 2; pass += 1) {
       try {
         const completion = await client.complete({
-          system: JUDGE_SYSTEM_PROMPT,
+          system,
           user: JSON.stringify(payload),
-          maxTokens: this.config.maxOutputTokens,
-          ...(signal === undefined ? {} : { signal }),
+          maxTokens,
+          ...(options.signal === undefined ? {} : { signal: options.signal }),
         })
         if (completion.truncated) {
           throw new JudgeProtocolError('bad-output', 'model output was truncated by max tokens')
@@ -91,8 +110,9 @@ export class JudgeService {
           weights: this.config.weights,
           threshold: this.config.passThreshold,
           thresholdState: this.config.thresholdState,
-          modelId: this.config.model,
-          promptVersion: 'judge-v1',
+          engine,
+          modelId,
+          promptVersion: engine === 'local' ? 'judge-local-v1' : 'judge-v1',
           weightsVersion: 'weights-v1',
         })
         result.tokenUsage = completion.usage
@@ -130,6 +150,15 @@ export class JudgeService {
     }
     return null
   }
+}
+
+/** Normalize a configured/requested engine value; anything else means the calibrated default. */
+export function normalizeEngine(value: string | undefined): JudgeEngine {
+  return value === 'local' ? 'local' : 'cloud'
+}
+
+function engineOf(result: JudgeResult): JudgeEngine {
+  return result.engine === 'local' ? 'local' : 'cloud'
 }
 
 function isRetryable(error: unknown): boolean {

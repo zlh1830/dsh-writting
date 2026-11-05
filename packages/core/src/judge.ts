@@ -92,6 +92,8 @@ export interface NormalizeJudgeInput {
   weights: JudgeWeights
   threshold: number
   thresholdState: 'calibrating' | 'calibrated'
+  /** Engine that produced the response; defaults to the calibrated cloud route. */
+  engine?: 'cloud' | 'local'
   modelId: string
   promptVersion: string
   weightsVersion: string
@@ -202,6 +204,7 @@ export function normalizeJudgeResult(input: NormalizeJudgeInput): JudgeResult {
     reference: null,
     guardFlags,
     tokenUsage: { input: 0, output: 0 },
+    engine: input.engine ?? 'cloud',
     modelId: input.modelId,
     promptVersion: input.promptVersion,
     weightsVersion: input.weightsVersion,

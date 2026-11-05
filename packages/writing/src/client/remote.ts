@@ -9,6 +9,7 @@ import type {
   GetHistoryRequest,
   GetQuestionRequest,
   HistoryEntry,
+  JudgeConfigResult,
   JudgeRequest,
   JudgeResult,
   ListQuestionsResult,
@@ -27,6 +28,7 @@ export interface TrainRemoteNamespace {
   getQuestion(request: GetQuestionRequest): Promise<RemoteResult<Question>>
   saveAttempt(request: SaveAttemptRequest): Promise<RemoteResult<SaveAttemptResult>>
   judge(request: JudgeRequest, signal?: AbortSignal): Promise<RemoteResult<JudgeResult>>
+  judgeConfig(): Promise<RemoteResult<JudgeConfigResult>>
   getHistory(request: GetHistoryRequest): Promise<RemoteResult<{ entries: HistoryEntry[] }>>
   getChain(request: GetChainRequest): Promise<RemoteResult<GetChainResult>>
   coachScan(request: CoachScanRequest, signal?: AbortSignal): Promise<RemoteResult<ChainSnapshot>>

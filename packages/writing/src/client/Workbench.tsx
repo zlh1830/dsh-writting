@@ -10,7 +10,7 @@ import {
   type Question,
   type QuestionSummary,
 } from '@local/dsh-train-core'
-import { loadDraft, loadLastQuestion, saveDraft, saveLastQuestion } from './draft.js'
+import { loadDraft, loadJudgeEngine, loadLastQuestion, saveDraft, saveJudgeEngine, saveLastQuestion, type JudgeEnginePreference } from './draft.js'
 import { CoachPanel } from './CoachPanel.js'
 import { remoteErrorText, type TrainRemoteNamespace } from './remote.js'
 
@@ -77,6 +77,8 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
   const [focusAnchor, setFocusAnchor] = useState<string | null>(null)
   const [historyView, setHistoryView] = useState<HistoryEntry | null>(null)
   const [lastAttemptId, setLastAttemptId] = useState<string | null>(null)
+  /** Which model grades this submission; persisted so the choice survives a refresh. */
+  const [engine, setEngine] = useState<JudgeEnginePreference>(() => loadJudgeEngine())
   const previewRef = useRef<HTMLDivElement | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const draftRef = useRef({ questionId: null as string | null, content: '', elapsedMs: 0, running: false })
@@ -84,6 +86,13 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
 
   const words = countWords(content)
   const questionId = question?.id ?? null
+  const engineLabel = engine === 'local' ? '本地模型审核' : '云端判分'
+
+  const changeEngine = (next: JudgeEnginePreference) => {
+    setEngine(next)
+    saveJudgeEngine(next)
+    setNotice(`审核引擎已切换为${next === 'local' ? '本地模型' : '云端'}；下次提交按新引擎判分。`)
+  }
 
   const persistDraft = useCallback(() => {
     const draft = draftRef.current
@@ -242,17 +251,17 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
     if (latest !== undefined && latest.attempt.sessionId === sessionId && latest.attempt.contentHash === hashText(content)) {
       setError(null)
       setLastAttemptId(latest.attempt.attemptId)
-      if (latest.judge !== null) {
+      if (latest.judge !== null && (latest.judge.engine ?? 'cloud') === engine) {
         setHistoryView(null)
         setJudge(latest.judge)
         setFocusAnchor(latest.judge.suggestions[0]?.anchor ?? null)
-        setNotice('内容未修改，未新增提交；已展示上一次评分。')
+        setNotice(`内容未修改，未新增提交；已展示上一次${engineLabel}结果。`)
         return
       }
       setNotice('内容未修改，未新增提交；正在补判上一次提交。')
       setBusy('judging')
       try {
-        const judged = await remote.judge({ attemptId: latest.attempt.attemptId })
+        const judged = await remote.judge({ attemptId: latest.attempt.attemptId, engine })
         if (!judged.ok) {
           setError(`判分失败：${remoteErrorText(judged.error)}`)
           return
@@ -260,7 +269,7 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
         setHistoryView(null)
         setJudge(judged.value)
         setFocusAnchor(judged.value.suggestions[0]?.anchor ?? null)
-        setNotice(`判分完成：${judged.value.score} 分。`)
+        setNotice(`判分完成：${judged.value.score} 分（${engineLabel}）。`)
         await loadHistory(question.id)
       } finally {
         setBusy(null)
@@ -287,16 +296,16 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
       }
       setLastAttemptId(saved.value.attemptId)
       setBusy('judging')
-      const judged = await remote.judge({ attemptId: saved.value.attemptId })
+      const judged = await remote.judge({ attemptId: saved.value.attemptId, engine })
       if (!judged.ok) {
-        setError(`稿件已保存（${saved.value.attemptId}），判分失败：${remoteErrorText(judged.error)}。可直接重试判分。`)
+        setError(`稿件已保存（${saved.value.attemptId}），${engineLabel}失败：${remoteErrorText(judged.error)}。可直接重试判分。`)
         await loadHistory(question.id)
         return
       }
       setHistoryView(null)
       setJudge(judged.value)
       setFocusAnchor(judged.value.suggestions[0]?.anchor ?? null)
-      setNotice(`判分完成：${judged.value.score} 分。`)
+      setNotice(`判分完成：${judged.value.score} 分（${engineLabel}）。`)
       await loadHistory(question.id)
     } finally {
       setBusy(null)
@@ -308,15 +317,15 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
     setError(null)
     setBusy('judging')
     try {
-      const judged = await remote.judge({ attemptId: lastAttemptId })
+      const judged = await remote.judge({ attemptId: lastAttemptId, engine })
       if (!judged.ok) {
-        setError(`判分失败：${remoteErrorText(judged.error)}`)
+        setError(`${engineLabel}失败：${remoteErrorText(judged.error)}`)
         if (question !== null) await loadHistory(question.id)
         return
       }
       setJudge(judged.value)
       setFocusAnchor(judged.value.suggestions[0]?.anchor ?? null)
-      setNotice(`判分完成：${judged.value.score} 分。`)
+      setNotice(`判分完成：${judged.value.score} 分（${engineLabel}）。`)
       if (question !== null) await loadHistory(question.id)
     } finally {
       setBusy(null)
@@ -430,6 +439,20 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
               {running ? '暂停' : '继续'}
             </button>
             <span style={{ flex: 1 }} />
+            <label style={{ ...styles.muted, display: 'flex', alignItems: 'center', gap: 6 }}>
+              审核引擎
+              <select
+                aria-label="审核引擎"
+                value={engine}
+                disabled={busy !== null || question === null}
+                onChange={(event) => changeEngine(event.target.value === 'local' ? 'local' : 'cloud')}
+                style={{ ...styles.button, padding: '4px 8px' }}
+                title={engine === 'local' ? '用本地模型判分：不联网，质量取决于本地模型' : '用云端 DeepSeek 判分（已校准口径）'}
+              >
+                <option value="cloud">云端判分</option>
+                <option value="local">本地模型审核</option>
+              </select>
+            </label>
             <button
               type="button"
               style={{ ...styles.primary, ...(busy !== null || question === null ? styles.disabled : {}) }}
@@ -439,6 +462,11 @@ export function WritingWorkbench({ sessionId, remote }: WritingWorkbenchProps) {
               {busy === 'saving' ? '保存中…' : busy === 'judging' ? '判分中…' : '提交判分'}
             </button>
           </div>
+          {engine === 'local' ? (
+            <div style={styles.muted}>
+              本地模型审核：请求只发给本机 <code>train-local</code> 模型，不联网；判定口径与云端一致，但分数质量取决于本地模型，仅供练习参考。
+            </div>
+          ) : null}
           <div style={styles.muted}>
             答题中请勿切换到 AI 对话；本视图只收集你的原稿，不提供对话输入，也不会自动写入正文。
           </div>
@@ -549,6 +577,9 @@ function ScoreCard({ judge, onFocus }: { judge: JudgeResult; onFocus: (anchor: s
             {judge.pass ? '达标' : '未达标'}
           </span>
           <span style={{ ...styles.badge, color: theme.muted }}>{judge.thresholdState === 'calibrating' ? '校准中' : '已校准'}</span>
+          <span style={{ ...styles.badge, color: judge.engine === 'local' ? theme.warn : theme.muted }}>
+            {judge.engine === 'local' ? '本地模型' : '云端'}
+          </span>
           {judge.unstable ? <span style={{ ...styles.badge, color: theme.danger }}>波动较大</span> : null}
         </div>
       </div>

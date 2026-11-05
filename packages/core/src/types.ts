@@ -50,7 +50,24 @@ export const SaveAttemptRequestSchema = z
   .strict()
 export type SaveAttemptRequest = z.infer<typeof SaveAttemptRequestSchema>
 
-export const JudgeRequestSchema = z.object({ attemptId: z.string().min(1) }).strict()
+/**
+ * Which model judges a submission. `cloud` keeps the calibrated DeepSeek route;
+ * `local` sends the same judge payload to the configured local provider and
+ * never falls back to the cloud, so an offline machine still gets a scorecard
+ * (and the scorecard records which engine produced it).
+ */
+export const JudgeEngineSchema = z.enum(['cloud', 'local'])
+export type JudgeEngine = z.infer<typeof JudgeEngineSchema>
+
+export const JudgeRequestSchema = z
+  .object({
+    attemptId: z.string().min(1),
+    /** Absent keeps the configured default engine. */
+    engine: JudgeEngineSchema.optional(),
+    /** Re-judge even when a scorecard for this attempt already exists. */
+    force: z.boolean().optional(),
+  })
+  .strict()
 export type JudgeRequest = z.infer<typeof JudgeRequestSchema>
 
 export const GetHistoryRequestSchema = z.object({ questionId: z.string().min(1) }).strict()
@@ -150,6 +167,8 @@ export const JudgeResultSchema = z.object({
   reference: z.string().nullable(),
   guardFlags: z.array(z.string()),
   tokenUsage: TokenUsageSchema,
+  /** Engine that produced this scorecard; older records predate the split and read as `cloud`. */
+  engine: JudgeEngineSchema.default('cloud'),
   modelId: z.string(),
   promptVersion: z.string(),
   weightsVersion: z.string(),
@@ -178,6 +197,16 @@ export const ListQuestionsResultSchema = z.object({
 })
 export type ListQuestionsResult = z.infer<typeof ListQuestionsResultSchema>
 
+export const JudgeConfigResultSchema = z.object({
+  engine: JudgeEngineSchema,
+  provider: z.string(),
+  model: z.string(),
+  localProvider: z.string(),
+  localModel: z.string(),
+  localAvailable: z.boolean(),
+})
+export type JudgeConfigResult = z.infer<typeof JudgeConfigResultSchema>
+
 export interface JudgeWeights {
   coverage: number
   chain: number
@@ -195,8 +224,15 @@ export const DEFAULT_WEIGHTS: JudgeWeights = {
 }
 
 export interface JudgeConfig {
+  /** Default engine when a request names none; the answer view can override per submission. */
+  engine: JudgeEngine
   provider: string
   model: string
+  /** Local engine route; never used as a cloud fallback and vice versa. */
+  localProvider: string
+  localModel: string
+  localRequestTimeoutMs: number
+  localMaxOutputTokens: number
   passThreshold: number
   thresholdState: 'calibrating' | 'calibrated'
   requestTimeoutMs: number
@@ -205,8 +241,13 @@ export interface JudgeConfig {
 }
 
 export const DEFAULT_JUDGE_CONFIG: JudgeConfig = {
+  engine: 'cloud',
   provider: 'deepseek-account',
   model: 'deepseek-flash',
+  localProvider: 'train-local',
+  localModel: 'qwen2.5:3b',
+  localRequestTimeoutMs: 60_000,
+  localMaxOutputTokens: 1_600,
   passThreshold: 90,
   thresholdState: 'calibrating',
   requestTimeoutMs: 45_000,

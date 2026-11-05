@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
-import type { CoachConfigResult, CoachProbeResult } from '@local/dsh-train-core'
+import type { CoachConfigResult, CoachProbeResult, JudgeConfigResult } from '@local/dsh-train-core'
 import { remoteErrorText, type TrainRemoteNamespace } from './remote.js'
 
 const theme = {
@@ -21,6 +21,7 @@ const styles = {
 
 export function CoachSettings({ remote }: { remote: TrainRemoteNamespace }) {
   const [config, setConfig] = useState<CoachConfigResult | null>(null)
+  const [judge, setJudge] = useState<JudgeConfigResult | null>(null)
   const [probe, setProbe] = useState<CoachProbeResult | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -31,6 +32,12 @@ export function CoachSettings({ remote }: { remote: TrainRemoteNamespace }) {
       const result = await remote.coachConfig()
       if (cancelled) return
       if (result.ok) setConfig(result.value)
+      else setError(remoteErrorText(result.error))
+    })()
+    void (async () => {
+      const result = await remote.judgeConfig()
+      if (cancelled) return
+      if (result.ok) setJudge(result.value)
       else setError(remoteErrorText(result.error))
     })()
     return () => {
@@ -56,9 +63,11 @@ export function CoachSettings({ remote }: { remote: TrainRemoteNamespace }) {
     setBusy(true)
     setError(null)
     try {
-      const result = await remote.coachConfig()
-      if (result.ok) setConfig(result.value)
-      else setError(remoteErrorText(result.error))
+      const [coachResult, judgeResult] = await Promise.all([remote.coachConfig(), remote.judgeConfig()])
+      if (coachResult.ok) setConfig(coachResult.value)
+      else setError(remoteErrorText(coachResult.error))
+      if (judgeResult.ok) setJudge(judgeResult.value)
+      else setError(remoteErrorText(judgeResult.error))
     } finally {
       setBusy(false)
     }
@@ -99,6 +108,29 @@ export function CoachSettings({ remote }: { remote: TrainRemoteNamespace }) {
         </div>
       ) : null}
       {error !== null && config !== null ? <div style={{ ...styles.muted, color: theme.danger, marginTop: 6 }}>{error}</div> : null}
+
+      <div style={{ ...styles.row, marginTop: 12, paddingTop: 10, borderTop: `1px solid ${theme.border}` }}>
+        <div>
+          <div style={{ fontWeight: 600 }}>写作训练 · 审核引擎</div>
+          <div style={styles.muted}>在「答题」页底部「审核引擎」切换云端 / 本地；这里显示配置与本地路由是否可用。</div>
+        </div>
+      </div>
+      {judge === null ? (
+        <div style={{ ...styles.muted, marginTop: 6 }}>正在读取审核配置…</div>
+      ) : (
+        <div style={{ marginTop: 6, display: 'grid', gap: 3 }}>
+          <div>
+            默认引擎：<strong>{judge.engine === 'local' ? '本地模型' : '云端'}</strong> · 云端：<code>{judge.provider}/{judge.model}</code>
+          </div>
+          <div>
+            本地：<code>{judge.localProvider}/{judge.localModel}</code> ·{' '}
+            <span style={{ color: judge.localAvailable ? theme.success : theme.danger }}>
+              {judge.localAvailable ? '已挂载，可直接切换' : '未挂载，本地审核会报错并提示'}
+            </span>
+          </div>
+        </div>
+      )}
+
       <div style={{ ...styles.muted, marginTop: 8 }}>
         本地 provider 在 DSH「设置 → 模型」添加 OpenAI-compatible 路由；迁移与真模型验收见本地 private 手册。
       </div>

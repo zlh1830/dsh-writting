@@ -1,4 +1,4 @@
-﻿import { readFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
@@ -7,8 +7,11 @@ import {
   toAttemptSummary,
   type Attempt,
   type HistoryEntry,
+  type JudgeConfig,
+  type JudgeEngine,
   type JudgeResult,
   type LlmClient,
+  type LlmCompleteInput,
   type LlmCompletion,
   type Question,
   type SaveAttemptInput,
@@ -119,18 +122,26 @@ class MemoryStore implements TrainStore {
 
 class FakeLlm implements LlmClient {
   calls = 0
+  inputs: LlmCompleteInput[] = []
   constructor(private readonly outputs: string[]) {}
-  async complete(): Promise<LlmCompletion> {
+  async complete(input: LlmCompleteInput): Promise<LlmCompletion> {
+    this.inputs.push(input)
     const text = this.outputs[this.calls] ?? this.outputs[this.outputs.length - 1] ?? ''
     this.calls += 1
     return { text, usage: { input: 1200, output: 300, total: 1500 }, finish: 'stop', truncated: false }
   }
 }
 
-async function setup(outputs: string[]) {
+async function setup(outputs: string[], config: JudgeConfig = DEFAULT_JUDGE_CONFIG) {
   const store = new MemoryStore()
   const llm = new FakeLlm(outputs)
-  const service = new JudgeService(store, DEFAULT_JUDGE_CONFIG, { llm: () => llm })
+  const engines: JudgeEngine[] = []
+  const service = new JudgeService(store, config, {
+    llm: (engine) => {
+      engines.push(engine)
+      return llm
+    },
+  })
   const attempt = await store.saveAttempt({
     question: QUESTION,
     sessionId: 's1',
@@ -140,7 +151,7 @@ async function setup(outputs: string[]) {
     contentHash: 'hash-1',
     now: Date.now(),
   })
-  return { store, llm, service, attempt }
+  return { store, llm, service, attempt, engines }
 }
 
 describe('JudgeService', () => {
@@ -204,6 +215,75 @@ describe('JudgeService', () => {
   it('fails loudly after two unusable outputs', async () => {
     const { service, attempt } = await setup(['not json', 'still not json'])
     await expect(service.judge(attempt.attemptId)).rejects.toMatchObject({ code: 'JUDGE_FAILED' })
+  })
+})
+
+describe('JudgeService engines', () => {
+  const LOCAL: JudgeConfig = { ...DEFAULT_JUDGE_CONFIG, localModel: 'qwen3.8-flash-next-iq2_xs' }
+
+  it('uses the local engine when requested and records engine, model and budget', async () => {
+    const { service, engines, llm, attempt } = await setup([await fixtureJudge()], LOCAL)
+    const result = await service.judge(attempt.attemptId, { engine: 'local' })
+    expect(engines).toEqual(['local'])
+    expect(result.engine).toBe('local')
+    expect(result.modelId).toBe('qwen3.8-flash-next-iq2_xs')
+    expect(llm.inputs[0]?.system).toContain('points 必须正好包含这些 id')
+    expect(llm.inputs[0]?.system).toContain('p1')
+    expect(llm.inputs[0]?.maxTokens).toBe(LOCAL.localMaxOutputTokens)
+  })
+
+  it('keeps the cloud prompt and budget on the cloud engine', async () => {
+    const { service, engines, llm, attempt } = await setup([await fixtureJudge()], LOCAL)
+    const result = await service.judge(attempt.attemptId)
+    expect(engines).toEqual(['cloud'])
+    expect(result.engine).toBe('cloud')
+    expect(result.modelId).toBe(DEFAULT_JUDGE_CONFIG.model)
+    expect(llm.inputs[0]?.maxTokens).toBe(DEFAULT_JUDGE_CONFIG.maxOutputTokens)
+    expect(llm.inputs[0]?.system).not.toContain('points 必须正好包含这些 id')
+  })
+
+  it('honours the configured default engine when the request names none', async () => {
+    const { service, engines, attempt } = await setup([await fixtureJudge()], { ...LOCAL, engine: 'local' })
+    const result = await service.judge(attempt.attemptId)
+    expect(engines).toEqual(['local'])
+    expect(result.engine).toBe('local')
+  })
+
+  it('re-judges when the requested engine differs from the stored scorecard', async () => {
+    const { service, engines, llm, attempt } = await setup([await fixtureJudge(), await fixtureJudge()], LOCAL)
+    const cloud = await service.judge(attempt.attemptId, { engine: 'cloud' })
+    const local = await service.judge(attempt.attemptId, { engine: 'local' })
+    expect(cloud.engine).toBe('cloud')
+    expect(local.engine).toBe('local')
+    expect(engines).toEqual(['cloud', 'local'])
+    expect(llm.calls).toBe(2)
+  })
+
+  it('force re-judges even when a scorecard exists', async () => {
+    const { service, llm, attempt } = await setup([await fixtureJudge(), await fixtureJudge()])
+    await service.judge(attempt.attemptId)
+    await service.judge(attempt.attemptId, { force: true })
+    expect(llm.calls).toBe(2)
+  })
+
+  it('reports a missing local provider as NO_LOCAL_JUDGE instead of grading on the cloud', async () => {
+    const store = new MemoryStore()
+    const service = new JudgeService(store, LOCAL, {
+      llm: () => {
+        throw new Error('本地审核 provider "train-local" 未挂载')
+      },
+    })
+    const attempt = await store.saveAttempt({
+      question: QUESTION,
+      sessionId: 's1',
+      content: CONTENT,
+      wordCount: CONTENT.length,
+      elapsedMs: 1_000,
+      contentHash: 'hash-local',
+      now: Date.now(),
+    })
+    await expect(service.judge(attempt.attemptId, { engine: 'local' })).rejects.toMatchObject({ code: 'NO_LOCAL_JUDGE' })
+    expect(await store.getJudge(attempt.attemptId)).toBeUndefined()
   })
 })
 

@@ -7,6 +7,9 @@
 ### Added
 
 - M0/M1 插件骨架与“写—判—改”MVP。
+- M2.1 本地审核引擎：`train-judge-cloud` 新增 `engine`（`cloud` / `local`）与本地路由（`localProvider` / `localModel` / 本地超时与输出预算）。答题页底部可逐次切换「云端判分 / 本地模型审核」，选择持久化在 localStorage；评分卡标注引擎并记录 `modelId`、`promptVersion`（新增 `judge-local-v1`）。本地引擎不联网、不回退云端，provider 未挂载时报 `NO_LOCAL_JUDGE`。
+- 本地审核用压缩版提示词（列出本题采分点 id），减少小模型漏判；新增 `judgeConfig` Remote 与设置页展示。
+- `JudgeResult` 增加 `engine` 字段（旧记录按 `cloud` 读取）；`JudgeRequest` 支持 `engine` 与 `force`。
 
 ### Fixed
 
